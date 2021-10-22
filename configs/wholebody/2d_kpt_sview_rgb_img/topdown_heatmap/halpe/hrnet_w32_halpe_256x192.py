@@ -1,4 +1,4 @@
-_base_ = ['../../../../_base_/datasets/ochuman.py']
+_base_ = ['../../../../_base_/datasets/halpe.py']
 log_level = 'INFO'
 load_from = None
 resume_from = None
@@ -28,24 +28,53 @@ log_config = dict(
     ])
 
 channel_cfg = dict(
-    num_output_channels=17,
-    dataset_joints=17,
+    num_output_channels=136,
+    dataset_joints=136,
     dataset_channel=[
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        list(range(136)),
     ],
-    inference_channel=[
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-    ])
+    inference_channel=list(range(136)))
 
 # model settings
 model = dict(
     type='TopDown',
-    pretrained='torchvision://resnet152',
-    backbone=dict(type='ResNet', depth=152),
+    pretrained='https://download.openmmlab.com/mmpose/'
+    'pretrain_models/hrnet_w32-36af842e.pth',
+    backbone=dict(
+        type='HRNet',
+        in_channels=3,
+        extra=dict(
+            stage1=dict(
+                num_modules=1,
+                num_branches=1,
+                block='BOTTLENECK',
+                num_blocks=(4, ),
+                num_channels=(64, )),
+            stage2=dict(
+                num_modules=1,
+                num_branches=2,
+                block='BASIC',
+                num_blocks=(4, 4),
+                num_channels=(32, 64)),
+            stage3=dict(
+                num_modules=4,
+                num_branches=3,
+                block='BASIC',
+                num_blocks=(4, 4, 4),
+                num_channels=(32, 64, 128)),
+            stage4=dict(
+                num_modules=3,
+                num_branches=4,
+                block='BASIC',
+                num_blocks=(4, 4, 4, 4),
+                num_channels=(32, 64, 128, 256))),
+    ),
     keypoint_head=dict(
         type='TopdownHeatmapSimpleHead',
-        in_channels=2048,
+        in_channels=32,
         out_channels=channel_cfg['num_output_channels'],
+        num_deconv_layers=0,
+        extra=dict(final_conv_kernel=1, ),
         loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
     train_cfg=dict(),
     test_cfg=dict(
@@ -55,8 +84,8 @@ model = dict(
         modulate_kernel=11))
 
 data_cfg = dict(
-    image_size=[288, 384],
-    heatmap_size=[72, 96],
+    image_size=[192, 256],
+    heatmap_size=[48, 64],
     num_output_channels=channel_cfg['num_output_channels'],
     num_joints=channel_cfg['dataset_joints'],
     dataset_channel=channel_cfg['dataset_channel'],
@@ -65,7 +94,7 @@ data_cfg = dict(
     nms_thr=1.0,
     oks_thr=0.9,
     vis_thr=0.2,
-    use_gt_bbox=True,
+    use_gt_bbox=False,
     det_bbox_thr=0.0,
     bbox_file='data/coco/person_detection_results/'
     'COCO_val2017_detections_AP_H_56_person.json',
@@ -86,7 +115,7 @@ train_pipeline = [
         type='NormalizeTensor',
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]),
-    dict(type='TopDownGenerateTarget', sigma=3),
+    dict(type='TopDownGenerateTarget', sigma=2),
     dict(
         type='Collect',
         keys=['img', 'target', 'target_weight'],
@@ -115,33 +144,31 @@ val_pipeline = [
 
 test_pipeline = val_pipeline
 
-data_root = 'data/ochuman'
+data_root = 'data/halpe'
 data = dict(
-    samples_per_gpu=48,
+    samples_per_gpu=64,
     workers_per_gpu=2,
     val_dataloader=dict(samples_per_gpu=32),
     test_dataloader=dict(samples_per_gpu=32),
     train=dict(
-        type='TopDownCocoDataset',
-        ann_file='data/coco/annotations/person_keypoints_train2017.json',
-        img_prefix='data/coco//train2017/',
+        type='TopDownHalpeDataset',
+        ann_file=f'{data_root}/annotations/halpe_train_v1.json',
+        img_prefix=f'{data_root}/hico_20160224_det/images/train2015/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
-        type='TopDownOCHumanDataset',
-        ann_file=f'{data_root}/annotations/'
-        'ochuman_coco_format_val_range_0.00_1.00.json',
-        img_prefix=f'{data_root}/images/',
+        type='TopDownHalpeDataset',
+        ann_file=f'{data_root}/annotations/halpe_val_v1.json',
+        img_prefix=f'{data_root}/val2017/',
         data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='TopDownOCHumanDataset',
-        ann_file=f'{data_root}/annotations/'
-        'ochuman_coco_format_test_range_0.00_1.00.json',
-        img_prefix=f'{data_root}/images/',
+        type='TopDownHalpeDataset',
+        ann_file=f'{data_root}/annotations/halpe_val_v1.json',
+        img_prefix=f'{data_root}/val2017/',
         data_cfg=data_cfg,
-        pipeline=test_pipeline,
+        pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
 )
