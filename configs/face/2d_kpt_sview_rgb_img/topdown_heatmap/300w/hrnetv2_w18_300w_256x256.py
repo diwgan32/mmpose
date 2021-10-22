@@ -106,7 +106,7 @@ train_pipeline = [
         type='NormalizeTensor',
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]),
-    dict(type='TopDownGenerateTarget', sigma=2),
+    dict(type='TopDownGenerateTarget', sigma=1.5),
     dict(
         type='Collect',
         keys=['img', 'target', 'target_weight'],
@@ -157,6 +157,6 @@ data = dict(
         ann_file=f'{data_root}/annotations/face_landmarks_300w_valid.json',
         img_prefix=f'{data_root}/images/',
         data_cfg=data_cfg,
-        pipeline=val_pipeline,
+        pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
 )

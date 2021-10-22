@@ -7,7 +7,7 @@ from .samplers import DistributedSampler
 from .datasets import (  # isort:skip
     AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
     AnimalLocustDataset, AnimalMacaqueDataset, AnimalPoseDataset,
-    AnimalZebraDataset, Body3DH36MDataset, BottomUpAicDataset,
+    AnimalZebraDataset, Body3DH36MDataset, Body3DH36MModifiedDataset, BottomUpAicDataset,
     BottomUpCocoDataset, BottomUpCocoWholeBodyDataset,
     BottomUpCrowdPoseDataset, BottomUpMhpDataset, DeepFashionDataset,
     Face300WDataset, FaceAFLWDataset, FaceCocoWholeBodyDataset,
@@ -34,7 +34,7 @@ __all__ = [
     'TopDownPoseTrack18Dataset', 'TopDownJhmdbDataset', 'TopDownMhpDataset',
     'DeepFashionDataset', 'Face300WDataset', 'FaceAFLWDataset',
     'FaceWFLWDataset', 'FaceCOFWDataset', 'FaceCocoWholeBodyDataset',
-    'Body3DH36MDataset', 'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
+    'Body3DH36MDataset', 'Body3DH36MModifiedDataset', 'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
     'build_dataloader', 'build_dataset', 'Compose', 'DistributedSampler',

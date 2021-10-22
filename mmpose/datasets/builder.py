@@ -41,6 +41,7 @@ def build_dataset(cfg, default_args=None):
         dataset = RepeatDataset(
             build_dataset(cfg['dataset'], default_args), cfg['times'])
     else:
+        print(cfg)
         dataset = build_from_cfg(cfg, DATASETS, default_args)
     return dataset
 

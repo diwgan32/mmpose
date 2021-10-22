@@ -159,7 +159,7 @@ class Kpt2dSviewRgbImgTopDownDataset(Dataset, metaclass=ABCMeta):
     def _get_normalize_factor(self, gts, *args, **kwargs):
         """Get the normalize factor. generally inter-ocular distance measured
         as the Euclidean distance between the outer corners of the eyes is
-        used. This function should be overrided to measure NME.
+        used. This function should be overrode, to measure NME.
 
         Args:
             gts (np.ndarray[N, K, 2]): Groundtruth keypoint location.

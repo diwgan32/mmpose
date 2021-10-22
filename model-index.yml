@@ -14,6 +14,7 @@ Import:
 - configs/body/2d_kpt_sview_rgb_img/associative_embedding/aic/hrnet_aic.yml
 - configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/higherhrnet_coco.yml
 - configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/higherhrnet_udp_coco.yml
+- configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/hourglass_ae_coco.yml
 - configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/hrnet_coco.yml
 - configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/hrnet_udp_coco.yml
 - configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/mobilenetv2_coco.yml
@@ -68,6 +69,7 @@ Import:
 - configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/shufflenetv1_mpii.yml
 - configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/shufflenetv2_mpii.yml
 - configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii_trb/resnet_mpii_trb.yml
+- configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/hrnet_ochuman.yml
 - configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/resnet_ochuman.yml
 - configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/posetrack18/hrnet_posetrack18.yml
 - configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/posetrack18/resnet_posetrack18.yml
@@ -125,3 +127,4 @@ Import:
 - configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/hrnet_coco-wholebody.yml
 - configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/hrnet_dark_coco-wholebody.yml
 - configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/resnet_coco-wholebody.yml
+- configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/halpe/hrnet_dark_halpe.yml

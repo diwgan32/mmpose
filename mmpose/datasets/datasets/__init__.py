@@ -4,7 +4,7 @@ from ...deprecated import (TopDownFreiHandDataset, TopDownOneHand10KDataset,
 from .animal import (AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
                      AnimalLocustDataset, AnimalMacaqueDataset,
                      AnimalPoseDataset, AnimalZebraDataset)
-from .body3d import Body3DH36MDataset
+from .body3d import Body3DH36MDataset, Body3DH36MModifiedDataset
 from .bottom_up import (BottomUpAicDataset, BottomUpCocoDataset,
                         BottomUpCocoWholeBodyDataset, BottomUpCrowdPoseDataset,
                         BottomUpMhpDataset)
@@ -18,10 +18,10 @@ from .mesh import (MeshAdversarialDataset, MeshH36MDataset, MeshMixDataset,
                    MoshDataset)
 from .top_down import (TopDownAicDataset, TopDownCocoDataset,
                        TopDownCocoWholeBodyDataset, TopDownCrowdPoseDataset,
-                       TopDownH36MDataset, TopDownJhmdbDataset,
-                       TopDownMhpDataset, TopDownMpiiDataset,
-                       TopDownMpiiTrbDataset, TopDownOCHumanDataset,
-                       TopDownPoseTrack18Dataset)
+                       TopDownH36MDataset, TopDownHalpeDataset,
+                       TopDownJhmdbDataset, TopDownMhpDataset,
+                       TopDownMpiiDataset, TopDownMpiiTrbDataset,
+                       TopDownOCHumanDataset, TopDownPoseTrack18Dataset)
 
 __all__ = [
     'TopDownCocoDataset', 'BottomUpCocoDataset', 'BottomUpMhpDataset',
@@ -36,7 +36,8 @@ __all__ = [
     'TopDownPoseTrack18Dataset', 'TopDownJhmdbDataset', 'TopDownMhpDataset',
     'DeepFashionDataset', 'Face300WDataset', 'FaceAFLWDataset',
     'FaceWFLWDataset', 'FaceCOFWDataset', 'FaceCocoWholeBodyDataset',
-    'Body3DH36MDataset', 'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
+    'Body3DH36MDataset', 'Body3DH36MModifiedDataset', 'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
-    'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset'
+    'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
+    'TopDownHalpeDataset'
 ]

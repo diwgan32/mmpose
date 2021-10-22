@@ -67,7 +67,7 @@ data_cfg = dict(
     vis_thr=0.2,
     use_gt_bbox=True,
     det_bbox_thr=0.0,
-    bbox_file='data/person_detection_results/'
+    bbox_file='data/coco/person_detection_results/'
     'COCO_val2017_detections_AP_H_56_person.json',
 )
 
@@ -142,6 +142,6 @@ data = dict(
         'ochuman_coco_format_test_range_0.00_1.00.json',
         img_prefix=f'{data_root}/images/',
         data_cfg=data_cfg,
-        pipeline=val_pipeline,
+        pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
 )
