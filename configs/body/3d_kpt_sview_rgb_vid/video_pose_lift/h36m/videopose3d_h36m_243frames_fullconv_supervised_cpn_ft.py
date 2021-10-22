@@ -61,7 +61,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = 'data/h36m'
+data_root = '/home/ubuntu/ProcessedDatasets/human3.6m'
 train_data_cfg = dict(
     num_joints=17,
     seq_len=243,
@@ -138,8 +138,8 @@ data = dict(
     val_dataloader=dict(samples_per_gpu=128),
     test_dataloader=dict(samples_per_gpu=128),
     train=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotation_body3d/fps50/h36m_train.npz',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
         img_prefix=f'{data_root}/images/',
         data_cfg=train_data_cfg,
         pipeline=train_pipeline,

@@ -4,7 +4,7 @@ import tempfile
 import numpy as np
 from mmcv import Config
 
-from mmpose.datasets import DATASETS
+from mmpose.datasets import DATASETS, Body3DH36MModifiedDataset
 from mmpose.datasets.builder import build_dataset
 
 
@@ -273,3 +273,8 @@ def test_body3d_mpi_inf_3dhp_dataset():
             np.testing.assert_almost_equal(infos['P-3DPCK'], 100.)
             np.testing.assert_almost_equal(infos['3DAUC'], 30 / 31 * 100)
             np.testing.assert_almost_equal(infos['P-3DAUC'], 30 / 31 * 100)
+
+if __name__ == "__main__":
+    print("Hello")
+    ret = DATASETS.get("Body3DH36MDataset")
+    print("Ret", ret)

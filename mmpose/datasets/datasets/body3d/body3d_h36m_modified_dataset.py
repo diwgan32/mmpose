@@ -11,7 +11,7 @@ from mmpose.core.evaluation import keypoint_mpjpe
 from mmpose.datasets.datasets.base import Kpt3dSviewKpt2dDataset
 from ...builder import DATASETS
 
-@DATASETS.register_module(name='Body3DH36MModifiedDataset')
+@DATASETS.register_module(name="Body3DH36MModifiedDataset")
 class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
     """Human3.6M dataset for 3D human pose estimation.
 
@@ -101,7 +101,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         self.joint_2d_src = data_cfg.get('joint_2d_src', 'gt')
         if self.joint_2d_src not in self.SUPPORTED_JOINT_2D_SRC:
             raise ValueError(
-                f'Unsupported joint_2d_src "{self.joint_2d_src}". '
+                f'Unsupported joint_2d_src "{self.joint_2d_src}"' + \
                 f'Supported options are {self.SUPPORTED_JOINT_2D_SRC}')
 
         self.joint_2d_det_file = data_cfg.get('joint_2d_det_file', None)
