@@ -11,7 +11,7 @@ from mmpose.core.evaluation import keypoint_mpjpe
 from mmpose.datasets.datasets.base import Kpt3dSviewKpt2dDataset
 from ...builder import DATASETS
 
-@DATASETS.register_module()
+@DATASETS.register_module(name='Body3DH36MModifiedDataset')
 class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
     """Human3.6M dataset for 3D human pose estimation.
 
