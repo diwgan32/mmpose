@@ -480,10 +480,27 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
 
     def _load_camera_param(self, camera_param_file):
         """Load camera parameters from file."""
-        return mmcv.load(camera_param_file)
+        camera_params = {}
+        subject_list = self._get_subject()
+        for subject in subject_list:
+            with open(osp.join(self.ann_prefix, 'Human36M_subject' + str(subject) + '_camera.json'),'r') as f:
+                data = json.load(f)
+                for camera_str in list(data.keys()):
+                    cam = int(camera_str)
+                    camera_params[(subject, int(cam))] = {
+                        "R": data[camera_str]["R"],
+                        "T": data[camera_str]["t"],
+                        "c": data[camera_str]["c"],
+                        "f": data[camera_str]["f"],
+                        'w': 1000,
+                        'h': 1002
+                    }
+
+        return camera_params
 
     def get_camera_param(self, imgname):
         """Get camera parameters of a frame by its image name."""
         assert hasattr(self, 'camera_param')
         subj, _, camera = self._parse_h36m_imgname(imgname)
+
         return self.camera_param[(subj, camera)]
