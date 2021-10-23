@@ -137,3 +137,5 @@ docs_zh-CN/modelzoo.md
 *.MOV
 
 vis_results/
+
+*.swp

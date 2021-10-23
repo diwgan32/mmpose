@@ -67,7 +67,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
     ALLOWED_METRICS = {'mpjpe', 'p-mpjpe', 'n-mpjpe'}
 
     def __init__(self,
-                 ann_prefix,
+                 ann_file,
                  img_prefix,
                  data_cfg,
                  pipeline,
@@ -83,7 +83,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             dataset_info = cfg._cfg_dict['dataset_info']
 
         super().__init__(
-            ann_prefix,
+            ann_file,
             img_prefix,
             data_cfg,
             pipeline,
@@ -221,7 +221,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             }
         """
         # get 2D joints
-
+        self.ann_prefix = self.ann_file
         subject_list = self._get_subject()
         sampling_ratio = self._get_subsampling_ratio()
         
