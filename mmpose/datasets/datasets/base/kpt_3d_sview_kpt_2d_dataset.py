@@ -223,10 +223,25 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
         results = copy.deepcopy(self.prepare_data(idx))
         results['ann_info'] = self.ann_info
         path = "/home/ubuntu/ProcessedDatasets/human3.6m/images"
-#        img = f"{path}/{results['target_image_path']}"
-#        processed_img = image.imshow_keypoints(img, np.expand_dims(np.hstack((results['input_2d_target'], np.ones((17, 1)))), axis=0), pose_kpt_color=np.zeros((17, 3)))
-#        fname = f"{random.randint(1, 10000)}.jpg"
-#        cv2.imwrite(fname, processed_img)
+        fname = f"{random.randint(1, 10000)}.mp4"
+        writer = cv2.VideoWriter(
+            filename=fname,
+            fps=30,
+            fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
+            frameSize=(1000, 1002)
+        )
+        for i in range(results["image_paths"].shape[0]):
+            tail = results["image_paths"][i]
+            img = f"{path}/{tail}"
+            processed_img = image.imshow_keypoints(
+                img,
+                np.expand_dims(
+                    np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0), pose_kpt_color=np.zeros((17, 3))
+            )
+
+            
+            writer.write(processed_img)
+        writer.release()
         return self.pipeline(results)
 
     def get_camera_param(self, imgname):
