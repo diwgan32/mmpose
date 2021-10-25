@@ -3,11 +3,13 @@ import copy
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
+import cv2
+import random
 from torch.utils.data import Dataset
 
 from mmpose.datasets import DatasetInfo
 from mmpose.datasets.pipelines import Compose
-
+from mmpose.core.visualization import image
 
 class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
     """Base class for 3D human pose datasets.
@@ -196,6 +198,7 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             'target_image_path': _imgnames[target_idx],
             'scales': _scales,
             'centers': _centers,
+            'input_2d_target': _joints_2d[target_idx, :, :]
         }
 
         if self.need_2d_label:
@@ -219,6 +222,11 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
         """Get a sample with given index."""
         results = copy.deepcopy(self.prepare_data(idx))
         results['ann_info'] = self.ann_info
+        path = "/home/ubuntu/ProcessedDatasets/human3.6m/images"
+#        img = f"{path}/{results['target_image_path']}"
+#        processed_img = image.imshow_keypoints(img, np.expand_dims(np.hstack((results['input_2d_target'], np.ones((17, 1)))), axis=0), pose_kpt_color=np.zeros((17, 3)))
+#        fname = f"{random.randint(1, 10000)}.jpg"
+#        cv2.imwrite(fname, processed_img)
         return self.pipeline(results)
 
     def get_camera_param(self, imgname):

@@ -1,7 +1,9 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import os.path as osp
+import json
 import warnings
 from collections import OrderedDict, defaultdict
+from pycocotools.coco import COCO
 
 import mmcv
 import numpy as np
@@ -81,7 +83,14 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
                 'for details.', DeprecationWarning)
             cfg = Config.fromfile('configs/_base_/datasets/h36m.py')
             dataset_info = cfg._cfg_dict['dataset_info']
-
+        
+        self.protocol = 2
+        self.lshoulder_idx = 11
+        self.rshoulder_idx = 14
+        self.thorax_idx = 8
+        self.root_idx = 0
+        self.joint_num = 17
+        self.old_to_new_coords = [0, 1, 2, 3, 4, 5, 6, 7, 0, 8, 10, 11, 12, 13, 14, 15, 16]
         super().__init__(
             ann_file,
             img_prefix,
@@ -90,10 +99,6 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             dataset_info=dataset_info,
             test_mode=test_mode)
 
-        self.protocol = 2
-        self.lshoulder_idx = 10
-        self.rshoulder_idx = 13
-        self.thorax_idx = 8
 
     def load_config(self, data_cfg):
         super().load_config(data_cfg)
@@ -145,7 +150,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         h = bbox[3]
         c_x = bbox[0] + w/2.
         c_y = bbox[1] + h/2.
-        aspect_ratio = cfg.input_shape[1]/cfg.input_shape[0]
+        aspect_ratio = 1
         if w > aspect_ratio * h:
             h = w / aspect_ratio
         elif w < aspect_ratio * h:
@@ -197,13 +202,11 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         cam_coord = np.dot(R, world_coord.transpose(1,0)).transpose(1,0) + t.reshape(1,3)
         return cam_coord
 
-    @staticmethod
-    def _add_thorax(self, joint_coord):
-        new_joint_coord = np.zeros((joint_coord.shape[0]+1, joint_coord.shape[1]))
+    def _transform_coords(self, joint_coord):
+        new_joint_coord = np.zeros((joint_coord.shape[0], joint_coord.shape[1]))
         thorax = (joint_coord[self.lshoulder_idx, :] + joint_coord[self.rshoulder_idx, :]) * 0.5
+        new_joint_coord = joint_coord[self.old_to_new_coords]
         new_joint_coord[self.thorax_idx, :] = thorax
-        new_joint_coord[:self.thorax_idx, :] = joint_coord[:self.thorax_idx, :]
-        new_joint_coord[self.thorax_idx+1:, :] = joint_coord[self.thorax_idx:, :]
 
         return new_joint_coord
 
@@ -263,7 +266,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             ann = db.anns[aid]
             image_id = ann['image_id']
             img = db.loadImgs(image_id)[0]
-            img_path = osp.join(self.img_dir, img['file_name'])
+            img_path = osp.join(self.img_prefix, img['file_name'])
             img_width, img_height = img['width'], img['height']
            
             # check subject and frame_idx
@@ -277,24 +280,18 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             cam_idx = img['cam_idx']
             cam_param = cameras[str(subject)][str(cam_idx)]
             R,t,f,c = np.array(cam_param['R'], dtype=np.float32), np.array(cam_param['t'], dtype=np.float32), np.array(cam_param['f'], dtype=np.float32), np.array(cam_param['c'], dtype=np.float32)
-                
             # project world coordinate to cam, image coordinate space
             action_idx = img['action_idx']; subaction_idx = img['subaction_idx']; frame_idx = img['frame_idx'];
             joint_world = np.array(joints[str(subject)][str(action_idx)][str(subaction_idx)][str(frame_idx)], dtype=np.float32)
-            joint_world = Body3DH36MModifiedDataset._add_thorax(joint_world)
+            joint_world = self._transform_coords(joint_world)
             joint_cam = Body3DH36MModifiedDataset._world2cam(joint_world, R, t)
             joint_img = Body3DH36MModifiedDataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
             
-            # TODO Fix this for test mode
-            if self.test_mode:
-                bbox = bbox_root_result[str(image_id)]['bbox'] # bbox should be aspect ratio preserved-extended. It is done in RootNet.
-                root_cam = bbox_root_result[str(image_id)]['root']
-            else:
-                bbox = Body3DH36MModifiedDataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
-                if bbox is None: continue
-                root_cam = joint_cam[self.root_idx]
+            bbox = Body3DH36MModifiedDataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
+            if bbox is None: continue
+            root_cam = joint_cam[self.root_idx]
 
             data_info["imgnames"].append(img['file_name'])
             data_info["joints_3d"].append(joint_cam)
@@ -302,7 +299,11 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             data_info["scales"].append([bbox[2]/200, bbox[3]/200])
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
-
+        data_info["joints_3d"] = np.array(data_info["joints_3d"])
+        data_info["joints_2d"] = np.array(data_info["joints_2d"])
+        data_info["scales"] = np.array(data_info["scales"])
+        data_info["centers"] = np.array(data_info["centers"])
+        data_info["imgnames"] = np.array(data_info["imgnames"])
         return data_info
 
     @staticmethod
@@ -483,11 +484,11 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         camera_params = {}
         subject_list = self._get_subject()
         for subject in subject_list:
-            with open(osp.join(self.ann_prefix, 'Human36M_subject' + str(subject) + '_camera.json'),'r') as f:
+            with open(osp.join(camera_param_file, 'Human36M_subject' + str(subject) + '_camera.json'),'r') as f:
                 data = json.load(f)
                 for camera_str in list(data.keys()):
                     cam = int(camera_str)
-                    camera_params[(subject, int(cam))] = {
+                    camera_params[(f"{subject:02d}", f"{cam:02d}")] = {
                         "R": data[camera_str]["R"],
                         "T": data[camera_str]["t"],
                         "c": data[camera_str]["c"],

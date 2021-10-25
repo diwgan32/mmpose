@@ -1,6 +1,7 @@
 _base_ = ['../../../../_base_/datasets/h36m.py']
 log_level = 'INFO'
-load_from = None
+load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_243frames_fullconv_supervised_cpn_ft-88f5abbb_20210527.pth"
+#load_from = None
 resume_from = None
 dist_params = dict(backend='nccl')
 workflow = [('train', 1)]
@@ -72,7 +73,7 @@ train_data_cfg = dict(
     joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
     'cpn_ft_h36m_dbb_train.npy',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotation_body3d/cameras.pkl',
+    camera_param_file=f'{data_root}/annotations',
 )
 test_data_cfg = dict(
     num_joints=17,
@@ -84,7 +85,7 @@ test_data_cfg = dict(
     joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
     'cpn_ft_h36m_dbb_test.npy',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotation_body3d/cameras.pkl',
+    camera_param_file=f'{data_root}/annotations',
 )
 
 train_pipeline = [
@@ -145,15 +146,15 @@ data = dict(
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotation_body3d/fps50/h36m_test.npz',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
         img_prefix=f'{data_root}/images/',
         data_cfg=test_data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotation_body3d/fps50/h36m_test.npz',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
         img_prefix=f'{data_root}/images/',
         data_cfg=test_data_cfg,
         pipeline=test_pipeline,

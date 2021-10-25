@@ -130,16 +130,16 @@ def imshow_keypoints(img,
 
     img = mmcv.imread(img)
     img_h, img_w, _ = img.shape
-
+ #   print("Saving...")
     for kpts in pose_result:
-
         kpts = np.array(kpts, copy=False)
-
+#        print(kpts)
         # draw each point on image
         if pose_kpt_color is not None:
             assert len(pose_kpt_color) == len(kpts)
             for kid, kpt in enumerate(kpts):
                 x_coord, y_coord, kpt_score = int(kpt[0]), int(kpt[1]), kpt[2]
+#                print(x_coord, y_coord)
                 if kpt_score > kpt_score_thr:
                     if show_keypoint_weight:
                         img_copy = img.copy()
