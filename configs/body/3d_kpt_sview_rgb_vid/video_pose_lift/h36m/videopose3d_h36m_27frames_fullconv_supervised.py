@@ -1,6 +1,6 @@
 _base_ = ['../../../../_base_/datasets/h36m.py']
 log_level = 'INFO'
-load_from = None
+load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_27frames_fullconv_supervised-fe8fbba9_20210527.pth"
 resume_from = None
 dist_params = dict(backend='nccl')
 workflow = [('train', 1)]
@@ -62,7 +62,7 @@ model = dict(
 
 # data settings
 data_root = 'data/h36m'
-data_cfg = dict(
+train_data_cfg = dict(
     num_joints=17,
     seq_len=27,
     seq_frame_interval=1,
@@ -70,8 +70,9 @@ data_cfg = dict(
     temporal_padding=True,
     joint_2d_src='gt',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotation_body3d/cameras.pkl',
+    camera_param_file=f'{data_root}/annotations',
 )
+
 
 train_pipeline = [
     dict(
@@ -124,24 +125,24 @@ data = dict(
     val_dataloader=dict(samples_per_gpu=128),
     test_dataloader=dict(samples_per_gpu=128),
     train=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotation_body3d/fps50/h36m_train.npz',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
         img_prefix=f'{data_root}/images/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotation_body3d/fps50/h36m_test.npz',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
         img_prefix=f'{data_root}/images/',
         data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotation_body3d/fps50/h36m_test.npz',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
         img_prefix=f'{data_root}/images/',
         data_cfg=data_cfg,
         pipeline=test_pipeline,
-        dataset_info={{_base_.dataset_info}}),
+        dataset_info={{_base_.dataset_info}})
 )
