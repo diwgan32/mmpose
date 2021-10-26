@@ -221,7 +221,9 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
     def __getitem__(self, idx):
         """Get a sample with given index."""
         results = copy.deepcopy(self.prepare_data(idx))
+        disp_vid = True
         results['ann_info'] = self.ann_info
+        if (not disp_vid): return self.pipeline(results)
         path = "/home/ubuntu/ProcessedDatasets/human3.6m/images"
         fname = f"{random.randint(1, 10000)}.mp4"
         writer = cv2.VideoWriter(
@@ -230,13 +232,17 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
             frameSize=(1000, 1002)
         )
+        if (results["image_paths"].shape[0] == 0):
+            print("Missing data!")
         for i in range(results["image_paths"].shape[0]):
             tail = results["image_paths"][i]
             img = f"{path}/{tail}"
             processed_img = image.imshow_keypoints(
                 img,
-                np.expand_dims(
-                    np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0), pose_kpt_color=np.zeros((17, 3))
+                np.expand_dims(np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0),
+                pose_kpt_color=np.zeros((17, 3)),
+                skeleton=self.ann_info['skeleton'],
+                pose_link_color=np.zeros((len(self.ann_info["skeleton"]), 3))
             )
 
             

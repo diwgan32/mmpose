@@ -32,6 +32,10 @@ def keypoint_mpjpe(pred, gt, mask, alignment='none'):
             ground truth
     """
     assert mask.any()
+    #print("Alignment", alignment)
+    #for i in range(pred.shape[0]):
+    #    print(pred[i], gt[i])
+    #    input("? ")
 
     if alignment == 'none':
         pass
@@ -47,7 +51,6 @@ def keypoint_mpjpe(pred, gt, mask, alignment='none'):
         pred = pred * scale_factor[:, None, None]
     else:
         raise ValueError(f'Invalid value for alignment: {alignment}')
-
     error = np.linalg.norm(pred - gt, ord=2, axis=-1)[mask].mean()
 
     return error

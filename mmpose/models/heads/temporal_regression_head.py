@@ -85,7 +85,9 @@ class TemporalRegressionHead(nn.Module):
         assert x.ndim == 3 and x.shape[2] == 1, f'Invalid shape {x.shape}'
         output = self.conv(x)
         N = output.shape[0]
-        return output.reshape(N, self.num_joints, 3)
+        ret = output.reshape(N, self.num_joints, 3)
+        output_ = ret.detach().cpu().numpy()
+        return ret
 
     def get_loss(self, output, target, target_weight):
         """Calculate keypoint loss.
@@ -105,7 +107,6 @@ class TemporalRegressionHead(nn.Module):
         """
         losses = dict()
         assert not isinstance(self.loss, nn.Sequential)
-
         # trajectory model
         if self.is_trajectory:
             if target.dim() == 2:

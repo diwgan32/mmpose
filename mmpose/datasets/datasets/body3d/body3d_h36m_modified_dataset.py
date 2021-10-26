@@ -171,7 +171,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             if self.protocol == 1:
                 subject = [11]
             elif self.protocol == 2:
-                subject = [9,11]
+                subject = [11]
        
         return subject
 
@@ -299,7 +299,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             data_info["scales"].append([bbox[2]/200, bbox[3]/200])
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
-        data_info["joints_3d"] = np.array(data_info["joints_3d"])
+        data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
         data_info["joints_2d"] = np.array(data_info["joints_2d"])
         data_info["scales"] = np.array(data_info["scales"])
         data_info["centers"] = np.array(data_info["centers"])
@@ -448,8 +448,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
-            masks.append(gt_visible)
-
+            masks.append(np.ones((17, 1)))
             action = self._parse_h36m_imgname(
                 self.data_info['imgnames'][target_id])[1]
             action_category = action.split('_')[0]
@@ -468,7 +467,6 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             alignment = 'scale'
         else:
             raise ValueError(f'Invalid mode: {mode}')
-
         error = keypoint_mpjpe(preds, gts, masks, alignment)
         name_value_tuples = [(err_name, error)]
 
