@@ -61,8 +61,8 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = 'data/h36m'
-train_data_cfg = dict(
+data_root = '/home/ubuntu/ProcessedDatasets/human3.6m'
+data_cfg = dict(
     num_joints=17,
     seq_len=27,
     seq_frame_interval=1,

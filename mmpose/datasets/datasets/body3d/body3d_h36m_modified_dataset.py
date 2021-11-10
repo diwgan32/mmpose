@@ -171,7 +171,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             if self.protocol == 1:
                 subject = [11]
             elif self.protocol == 2:
-                subject = [11]
+                subject = [9, 11]
        
         return subject
 
@@ -179,7 +179,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         if not self.test_mode:
             return 5
         else:
-            return 64
+            return 1
     
     @staticmethod
     def _cam2pixel(cam_coord, f, c):
@@ -314,7 +314,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         s_11_act_16_subact_02_ca_04_001360.jpg
         """
         name_parts = osp.basename(imgname).split('_')
-        return name_parts[1], name_parts[3], name_parts[7]
+        return name_parts[1], name_parts[3]+"_"+name_parts[5], name_parts[7]
 
     def build_sample_indices(self):
         """Split original videos into sequences and build frame indices.
