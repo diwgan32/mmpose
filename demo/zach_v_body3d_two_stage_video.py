@@ -167,7 +167,7 @@ def process_video(args):
     assert pose_det_model.cfg.model.type == 'TopDown', 'Only "TopDown"' \
         'model is supported for the 1st stage (2D pose detection)'
 
-    print("pose_det_dataset->", pose_det_model.cfg.data['test']['type'])
+#     print("pose_det_dataset->", pose_det_model.cfg.data['test']['type'])
     
     pose_det_dataset = pose_det_model.cfg.data['test']['type']
 
@@ -226,7 +226,7 @@ def process_video(args):
         'Only "PoseLifter" model is supported for the 2nd stage ' \
         '(2D-to-3D lifting)'
     
-    print("pose_lift_dataset->", pose_lift_model.cfg.data['test']['type'])
+#     print("pose_lift_dataset->", pose_lift_model.cfg.data['test']['type'])
     
     pose_lift_dataset = pose_lift_model.cfg.data['test']['type']
 
