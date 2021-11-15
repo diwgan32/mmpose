@@ -61,7 +61,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/home/ubuntu/ProcessedDatasets/human3.6m'
+data_root = '/home/fsuser/ProcessedDatasets/human3.6m'
 train_data_cfg = dict(
     num_joints=17,
     seq_len=1,
@@ -133,10 +133,10 @@ val_pipeline = [
 test_pipeline = val_pipeline
 
 data = dict(
-    samples_per_gpu=128,
+    samples_per_gpu=256,
     workers_per_gpu=2,
-    val_dataloader=dict(samples_per_gpu=128),
-    test_dataloader=dict(samples_per_gpu=128),
+    val_dataloader=dict(samples_per_gpu=256),
+    test_dataloader=dict(samples_per_gpu=256),
     train=dict(
         type='Body3DH36MModifiedDataset',
         ann_file=f'{data_root}/annotations',

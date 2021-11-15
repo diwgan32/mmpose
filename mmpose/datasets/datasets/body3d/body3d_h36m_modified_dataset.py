@@ -179,7 +179,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         if not self.test_mode:
             return 5
         else:
-            return 1
+            return 5
     
     @staticmethod
     def _cam2pixel(cam_coord, f, c):
