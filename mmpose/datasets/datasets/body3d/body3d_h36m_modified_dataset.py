@@ -179,7 +179,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         if not self.test_mode:
             return 5
         else:
-            return 5
+            return 1
     
     @staticmethod
     def _cam2pixel(cam_coord, f, c):
@@ -283,7 +283,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             # project world coordinate to cam, image coordinate space
             action_idx = img['action_idx']; subaction_idx = img['subaction_idx']; frame_idx = img['frame_idx'];
             joint_world = np.array(joints[str(subject)][str(action_idx)][str(subaction_idx)][str(frame_idx)], dtype=np.float32)
-            joint_world = self._transform_coords(joint_world)
+            #joint_world = self._transform_coords(joint_world)
             joint_cam = Body3DH36MModifiedDataset._world2cam(joint_world, R, t)
             joint_img = Body3DH36MModifiedDataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
@@ -296,7 +296,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             data_info["imgnames"].append(img['file_name'])
             data_info["joints_3d"].append(joint_cam)
             data_info["joints_2d"].append(joint_img[:, :2])
-            data_info["scales"].append([bbox[2]/200, bbox[3]/200])
+            data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
         data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
