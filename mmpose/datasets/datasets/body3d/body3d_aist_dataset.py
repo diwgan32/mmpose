@@ -225,7 +225,6 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
 
-            img_path = osp.join(self.img_dir, db.imgs[ann['image_id']]['file_name'])
             data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
             data_info["joints_3d"].append(joint_cam)
             data_info["joints_2d"].append(joint_img[:, :2])
