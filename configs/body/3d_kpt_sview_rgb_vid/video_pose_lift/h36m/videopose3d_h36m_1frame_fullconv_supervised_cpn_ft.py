@@ -72,7 +72,7 @@ train_data_cfg = dict(
     joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
     'cpn_ft_h36m_dbb_train.npy',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotations',
+    camera_param_file=f'{data_root}/',
 )
 test_data_cfg = dict(
     num_joints=17,
@@ -84,7 +84,7 @@ test_data_cfg = dict(
     joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
     'cpn_ft_h36m_dbb_test.npy',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotations',
+    camera_param_file=f'{data_root}/',
 )
 
 train_pipeline = [

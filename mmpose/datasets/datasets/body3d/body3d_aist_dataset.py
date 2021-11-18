@@ -141,6 +141,35 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
         self.ann_info.update(ann_info)
 
+    @staticmethod
+    def process_bbox(bbox, width, height):
+        # sanitize bboxes
+        x, y, w, h = bbox
+        x1 = np.max((0, x))
+        y1 = np.max((0, y))
+        x2 = np.min((width - 1, x1 + np.max((0, w - 1))))
+        y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
+        if w*h > 0 and x2 >= x1 and y2 >= y1:
+            bbox = np.array([x1, y1, x2-x1, y2-y1])
+        else:
+            return None
+
+        # aspect ratio preserving bbox
+        w = bbox[2]
+        h = bbox[3]
+        c_x = bbox[0] + w/2.
+        c_y = bbox[1] + h/2.
+        aspect_ratio = 1
+        if w > aspect_ratio * h:
+            h = w / aspect_ratio
+        elif w < aspect_ratio * h:
+            w = h * aspect_ratio
+        bbox[2] = w*1.25
+        bbox[3] = h*1.25
+        bbox[0] = c_x - bbox[2]/2.
+        bbox[1] = c_y - bbox[3]/2.
+        return bbox
+
     def load_annotations(self):
         """
             Reads AIST annotations, returns them in the following
@@ -171,7 +200,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             img = db.loadImgs(ann['image_id'])[0]
             width, height = img['width'], img['height']
 
-            bbox = process_bbox(ann['bbox'], width, height)
+            bbox = Body3DAISTDataset.process_bbox(ann['bbox'], width, height)
             if bbox is None: continue
 
             # joints and vis
@@ -187,7 +216,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             img_path = osp.join(self.img_dir, db.imgs[ann['image_id']]['file_name'])
             data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
             data_info["joints_3d"].append(joint_cam)
-            data_info["joints_2d"].append(joint_img[, :2])
+            data_info["joints_2d"].append(joint_img[:, :2])
             data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
@@ -354,7 +383,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             gts.append(gt)
             masks.append(gt_visible)
 
-            action = self._parse_h36m_imgname(
+            action = self._parse_aist_imgname(
                 self.data_info['imgnames'][target_id])[1]
             action_category = action.split('_')[0]
             action_category_indices[action_category].append(idx)
@@ -390,5 +419,5 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
     def get_camera_param(self, imgname):
         """Get camera parameters of a frame by its image name."""
         assert hasattr(self, 'camera_param')
-        subj, _, camera = self._parse_h36m_imgname(imgname)
+        subj, _, camera = self._parse_aist_imgname(imgname)
         return self.camera_param[(subj, camera)]
