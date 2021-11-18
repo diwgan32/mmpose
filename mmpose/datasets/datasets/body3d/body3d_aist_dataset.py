@@ -185,7 +185,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(self.train_annot_path)
+        db = COCO(f"{self.ann_file}/aist_training_final_1m.json")
         data_info = {
             'imgnames': [],
             'joints_3d': [],
