@@ -1,6 +1,8 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import os.path as osp
 import warnings
+import json
+
 from collections import OrderedDict, defaultdict
 from pycocotools.coco import COCO
 
