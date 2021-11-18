@@ -217,7 +217,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
             joint_cam = np.array(ann['joint_cam'])
             joint_cam = self._transform_coords(joint_cam)
-            joint_img = Body3DAISTDataset.cam2pixel(joint_cam, f, c)
+            joint_img = Body3DAISTDataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
 
