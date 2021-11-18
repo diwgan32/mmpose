@@ -156,7 +156,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(self.train_annot_path)
+        db = COCO(f"{self.ann_file}/aist_training_final_1m.json")
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -187,7 +187,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             img_path = osp.join(self.img_dir, db.imgs[ann['image_id']]['file_name'])
             data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
             data_info["joints_3d"].append(joint_cam)
-            data_info["joints_2d"].append(joint_img[, :2])
+            data_info["joints_2d"].append(joint_img[:, :2])
             data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
