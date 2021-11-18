@@ -98,14 +98,14 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
     def _transform_coords(joint_cam):
         # SPINE is average of thorax and pelvis
         head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])
-        transformed_coords = joint_cam[AIST_TO_H36M]
-        thorax = (transformed_coords[H36M_LSHOULDER_IDX] + transformed_coords[H36M_RSHOULDER_IDX])/2.0
-        pelvis = (transformed_coords[H36M_LHIP_IDX] + transformed_coords[H36M_RHIP_IDX])/2.0
+        transformed_coords = joint_cam[self.AIST_TO_H36M]
+        thorax = (transformed_coords[self.H36M_LSHOULDER_IDX] + transformed_coords[self.H36M_RSHOULDER_IDX])/2.0
+        pelvis = (transformed_coords[self.H36M_LHIP_IDX] + transformed_coords[self.H36M_RHIP_IDX])/2.0
 
         spine = (thorax + pelvis)/2.0
-        transformed_coords[H36M_SPINE_IDX] = spine
-        transformed_coords[H36M_THORAX_IDX] = thorax
-        transformed_coords[H36M_HEAD_IDX] = head
+        transformed_coords[self.H36M_SPINE_IDX] = spine
+        transformed_coords[self.H36M_THORAX_IDX] = thorax
+        transformed_coords[self.H36M_HEAD_IDX] = head
 
         return transformed_coords
 
