@@ -170,6 +170,14 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         bbox[1] = c_y - bbox[3]/2.
         return bbox
 
+    @staticmethod
+    def _cam2pixel(cam_coord, f, c):
+        x = cam_coord[:, 0] / (cam_coord[:, 2] + 1e-8) * f[0] + c[0]
+        y = cam_coord[:, 1] / (cam_coord[:, 2] + 1e-8) * f[1] + c[1]
+        z = cam_coord[:, 2]
+        img_coord = np.concatenate((x[:,None], y[:,None], z[:,None]),1)
+        return img_coord
+        
     def load_annotations(self):
         """
             Reads AIST annotations, returns them in the following
@@ -209,7 +217,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
             joint_cam = np.array(ann['joint_cam'])
             joint_cam = self._transform_coords(joint_cam)
-            joint_img = cam2pixel(joint_cam, f, c)
+            joint_img = Body3DAISTDataset.cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
 
