@@ -450,7 +450,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         video_to_camera = {}
         data = mapping_f.readlines()
         for line in data:
-            video_to_camera[line.split(" ")[0]] = line.split(" ")[1]
+            line_str = line.strip()
+            video_to_camera[line_str.split(" ")[0]] = line_str.split(" ")[1]
 
         mapping_f.close()
 
