@@ -14,7 +14,7 @@ from ...builder import DATASETS
 
 
 @DATASETS.register_module()
-class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
+class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
     """AIST dataset for 3D human pose estimation.
 
 
@@ -29,7 +29,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             validation dataset. Default: False.
     """
 
-    AIST_JOINT_NAMES = [
+    PANOPTIC_JOINT_NAMES = [
         'Nose',
         'L_Eye',
         'R_Eye',
@@ -50,7 +50,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         "Pelvis"
     ]
 
-    AIST_TO_H36M = [
+    PANOPTIC_TO_H36M = [
         17, 12, 14, 16, 11, 13, 15, -1, -1, 0, -1, 5, 7, 9, 6, 8, 10
     ]
 
@@ -159,6 +159,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         db = COCO(self.train_annot_path)
         data_info = {
             'imgnames': [],
+            "annotation_id": [],
             'joints_3d': [],
             'joints_2d': [],
             'scales': [],
@@ -186,6 +187,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
             img_path = osp.join(self.img_dir, db.imgs[ann['image_id']]['file_name'])
             data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
+            data_info["annotation_id"].append((db.imgs[ann['image_id']]['file_name'], db.imgs[ann['image_id']]["subject_id"]))
             data_info["joints_3d"].append(joint_cam)
             data_info["joints_2d"].append(joint_img[, :2])
             data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
@@ -201,19 +203,17 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         return data_info
 
     @staticmethod
-    def _parse_aist_imgname(imgname):
+    def _parse_panoptic_imgname(annotation_id):
         """Parse imgname to get information of subject, action and camera.
 
         See here for name format: https://aistdancedb.ongaaccel.jp/data_formats/
         """
-        video_name = imgname.split("/")[0]
-        parts = video_name.split("_")
-        subj = parts[3]
+        imgname, subject = annotation_id
+        parts = imgname.split("/")
 
-        # Action is dance genre, situation, music id, choreography id
-        action = f"{parts[0]}_{parts[1]}_{parts[4]}_{parts[5]}"
-        camera = parts[2]
-        return subj, action, camera
+        action = parts[0]
+        camera = parts[1]
+        return subject, action, camera
 
     def build_sample_indices(self):
         """Split original videos into sequences and build frame indices.
@@ -224,8 +224,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         # Group frames into videos. Assume that self.data_info is
         # chronological.
         video_frames = defaultdict(list)
-        for idx, imgname in enumerate(self.data_info['imgnames']):
-            subj, action, camera = self._parse_aist_imgname(imgname)
+        for idx, annot in enumerate(self.data_info['annotation_id']):
+            subj, action, camera = self._parse_panoptic_imgname(annot)
 
             # TODO: Is _all_ going to be in self.actions and self.subjects?
             if '_all_' not in self.actions and action not in self.actions:

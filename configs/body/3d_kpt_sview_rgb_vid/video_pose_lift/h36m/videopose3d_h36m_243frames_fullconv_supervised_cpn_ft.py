@@ -1,7 +1,6 @@
 _base_ = ['../../../../_base_/datasets/h36m.py']
 log_level = 'INFO'
 load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_243frames_fullconv_supervised_cpn_ft-88f5abbb_20210527.pth"
-#load_from = None
 resume_from = None
 dist_params = dict(backend='nccl')
 workflow = [('train', 1)]

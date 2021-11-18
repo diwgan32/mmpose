@@ -61,7 +61,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/home/fsuser/ProcessedDatasets/human3.6m'
+data_root = '/data/ProcessedDatasets/aist_processed/'
 train_data_cfg = dict(
     num_joints=17,
     seq_len=1,
@@ -138,23 +138,23 @@ data = dict(
     val_dataloader=dict(samples_per_gpu=256),
     test_dataloader=dict(samples_per_gpu=256),
     train=dict(
-        type='Body3DH36MModifiedDataset',
-        ann_file=f'{data_root}/annotations',
-        img_prefix=f'{data_root}/images/',
+        type='Body3DAISTDataset',
+        ann_file=f'{data_root}/',
+        img_prefix=f'{data_root}/',
         data_cfg=train_data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
-        type='Body3DH36MModifiedDataset',
-        ann_file=f'{data_root}/annotations',
-        img_prefix=f'{data_root}/images/',
+        type='Body3DAISTDataset',
+        ann_file=f'{data_root}/',
+        img_prefix=f'{data_root}/',
         data_cfg=test_data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='Body3DH36MModifiedDataset',
-        ann_file=f'{data_root}/annotations',
-        img_prefix=f'{data_root}/images/',
+        type='Body3DAISTDataset',
+        ann_file=f'{data_root}/',
+        img_prefix=f'{data_root}/',
         data_cfg=test_data_cfg,
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
