@@ -423,12 +423,67 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
         return name_value_tuples
 
+    @staticmethod
+    def rodrigues_vec_to_rotation_mat(rodrigues_vec):
+    theta = np.linalg.norm(rodrigues_vec)
+    if theta < sys.float_info.epsilon:              
+        rotation_mat = np.eye(3, dtype=float)
+    else:
+        r = rodrigues_vec / theta
+        I = np.eye(3, dtype=float)
+        r_rT = np.array([
+            [r[0]*r[0], r[0]*r[1], r[0]*r[2]],
+            [r[1]*r[0], r[1]*r[1], r[1]*r[2]],
+            [r[2]*r[0], r[2]*r[1], r[2]*r[2]]
+        ])
+        r_cross = np.array([
+            [0, -r[2], r[1]],
+            [r[2], 0, -r[0]],
+            [-r[1], r[0], 0]
+        ])
+        rotation_mat = math.cos(theta) * I + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
+    return rotation_mat 
+
     def _load_camera_param(self, camera_param_file):
-        """Load camera parameters from file."""
-        return mmcv.load(camera_param_file)
+        camera_params = {}
+        mapping_f = open(f"{camera_param_file}/mapping.txt")
+        video_to_camera = {}
+        data = mapping_f.readlines()
+        for line in data:
+            video_to_camera[line.split(" ")[0]] = line.split(" ")[1]
+
+        mapping_f.close()
+
+        for video_name in list(video_to_camera.keys()):
+            with open(osp.join(camera_param_file, f"{video_to_camera[video_name]}.json"),'r') as f:
+                data = json.load(f)
+
+                parts = video_name.split("_")
+                subj = parts[3]
+
+                # Action is dance genre, situation, music id, choreography id
+                action = f"{parts[0]}_{parts[1]}_{parts[4]}_{parts[5]}"
+                for camera_str in list(data):
+                    matrix = ata[camera_str]["matrix"]
+                    R = Body3DAISTDataset.rodrigues_vec_to_rotation_mat(data[camera_str]["rotation"])
+
+                    # Convert to m
+                    T = np.array(data[camera_str]["translation"])/1000.0
+                    c = np.array([matrix[0][2], matrix[1][2]])
+                    f = np.array([matrix[0][0], matrix[1][1]])
+                    camera_params[(subj, action, camera_str)] = {
+                        "R": R,
+                        "T": T,
+                        "c": c,
+                        "f": f,
+                        'w': 640,
+                        'h': 360
+                    }
+
+        return camera_params
 
     def get_camera_param(self, imgname):
         """Get camera parameters of a frame by its image name."""
         assert hasattr(self, 'camera_param')
-        subj, _, camera = self._parse_aist_imgname(imgname)
-        return self.camera_param[(subj, camera)]
+        subj, action, camera = self._parse_aist_imgname(imgname)
+        return self.camera_param[(subj, action, camera)]
