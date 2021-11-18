@@ -87,6 +87,10 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             cfg = Config.fromfile('configs/_base_/datasets/h36m.py')
             dataset_info = cfg._cfg_dict['dataset_info']
 
+        self.protocol = 2
+        self.root_idx = 0
+        self.joint_num = 17
+
         super().__init__(
             ann_file,
             img_prefix,
@@ -177,7 +181,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         z = cam_coord[:, 2]
         img_coord = np.concatenate((x[:,None], y[:,None], z[:,None]),1)
         return img_coord
-        
+
     def load_annotations(self):
         """
             Reads AIST annotations, returns them in the following
