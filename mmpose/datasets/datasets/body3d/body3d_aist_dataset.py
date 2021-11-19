@@ -7,6 +7,7 @@ import math
 from collections import OrderedDict, defaultdict
 from pycocotools.coco import COCO
 import random
+import glob
 
 import mmcv
 import numpy as np
@@ -200,7 +201,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(f"{self.ann_file}/aist_training_trimmed.json")
+        files = glob.glob(f"{self.ann_file}/aist_training_*.json")
+
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -208,32 +210,36 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             'scales': [],
             'centers': [],
         }
-        for aid in db.anns.keys():
-            ann = db.anns[aid]
-            if (not db.imgs[ann['image_id']]["is_train"]):
-                continue
-            img = db.loadImgs(ann['image_id'])[0]
-            width, height = img['width'], img['height']
 
-            bbox = Body3DAISTDataset.process_bbox(ann['bbox'], width, height)
-            if bbox is None: continue
+        for file in files:
+            db = COCO(file)
+            
+            for aid in db.anns.keys():
+                ann = db.anns[aid]
+                if (not db.imgs[ann['image_id']]["is_train"]):
+                    continue
+                img = db.loadImgs(ann['image_id'])[0]
+                width, height = img['width'], img['height']
 
-            # joints and vis
-            f = np.array(db.imgs[ann['image_id']]["camera_param"]['focal'])
-            c = np.array(db.imgs[ann['image_id']]["camera_param"]['princpt'])
+                bbox = Body3DAISTDataset.process_bbox(ann['bbox'], width, height)
+                if bbox is None: continue
 
-            joint_cam = np.array(ann['joint_cam'])
-            joint_cam = self._transform_coords(joint_cam)
-            joint_img = Body3DAISTDataset._cam2pixel(joint_cam, f, c)
-            joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
-            joint_vis = np.ones((self.joint_num,1))
+                # joints and vis
+                f = np.array(db.imgs[ann['image_id']]["camera_param"]['focal'])
+                c = np.array(db.imgs[ann['image_id']]["camera_param"]['princpt'])
 
-            data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
-            data_info["joints_3d"].append(joint_cam)
-            data_info["joints_2d"].append(joint_img[:, :2])
-            data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
-            center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
-            data_info["centers"].append(center)
+                joint_cam = np.array(ann['joint_cam'])
+                joint_cam = self._transform_coords(joint_cam)
+                joint_img = Body3DAISTDataset._cam2pixel(joint_cam, f, c)
+                joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
+                joint_vis = np.ones((self.joint_num,1))
+
+                data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
+                data_info["joints_3d"].append(joint_cam)
+                data_info["joints_2d"].append(joint_img[:, :2])
+                data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
+                center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
+                data_info["centers"].append(center)
         
         data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/1000
         data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
