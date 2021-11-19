@@ -200,7 +200,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(f"{self.ann_file}/aist_training_final_100k.json")
+        db = COCO(f"{self.ann_file}/aist_training_trimmed.json")
         data_info = {
             'imgnames': [],
             'joints_3d': [],

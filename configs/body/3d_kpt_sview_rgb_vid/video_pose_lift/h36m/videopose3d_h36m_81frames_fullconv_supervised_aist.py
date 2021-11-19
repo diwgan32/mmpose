@@ -61,7 +61,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/data/ProcessedDatasets/aist_processed'
+data_root = '/data/ProcessedDatasets/aist_processed_all/aist_processed/'
 data_cfg = dict(
     num_joints=17,
     seq_len=81,

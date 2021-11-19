@@ -4,8 +4,8 @@ from ...deprecated import (TopDownFreiHandDataset, TopDownOneHand10KDataset,
 from .animal import (AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
                      AnimalLocustDataset, AnimalMacaqueDataset,
                      AnimalPoseDataset, AnimalZebraDataset)
-from .body3d import Body3DH36MDataset, Body3DH36MModifiedDataset, Body3DAISTDataset,
-                    Body3DPanopticDataset
+from .body3d import (Body3DH36MDataset, Body3DH36MModifiedDataset, Body3DAISTDataset,
+                    Body3DPanopticDataset)
 from .bottom_up import (BottomUpAicDataset, BottomUpCocoDataset,
                         BottomUpCocoWholeBodyDataset, BottomUpCrowdPoseDataset,
                         BottomUpMhpDataset)

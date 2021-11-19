@@ -18,7 +18,7 @@ from ...builder import DATASETS
 
 
 @DATASETS.register_module()
-class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
+class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
     """AIST dataset for 3D human pose estimation.
 
 
@@ -200,7 +200,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(f"{self.ann_file}/panoptic_training_0.json")
+        db = COCO(f"{self.ann_file}/panoptic_training_final_10k.json")
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -433,10 +433,11 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         video_to_camera = {}
         list_of_sequences = sequences_f.readlines()
         sequences_f.close()
-        
         for sequence in list_of_sequences:
             seq_name = sequence.strip()
-            with open(osp.join(camera_param_file, seq_name, "calibration_{seq_name}.json"),'r') as f:
+            if (not osp.isdir(osp.join(camera_param_file, seq_name))):
+                continue
+            with open(osp.join(camera_param_file, seq_name, f"calibration_{seq_name}.json"),'r') as f:
                 data = json.load(f)
                 # Action is dance genre, situation, music id, choreography id
                 action = seq_name
@@ -448,7 +449,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                     R = camera_obj["R"]
                     camera_str = camera_obj["name"].split("_")[1]
                     # Convert to m
-                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][0][1], camera_obj["t"][0][2]])/1000.0
+                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][1][0], camera_obj["t"][2][0]])/1000.0
                     c = np.array([matrix[0][2], matrix[1][2]])
                     f = np.array([matrix[0][0], matrix[1][1]])
                     camera_params[(action, camera_str)] = {
