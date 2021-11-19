@@ -114,8 +114,6 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         transformed_coords[self.H36M_SPINE_IDX] = spine
         transformed_coords[self.H36M_THORAX_IDX] = thorax
         transformed_coords[self.H36M_HEAD_IDX] = head
-        a = list(range(17))
-        random.shuffle(a)
         return transformed_coords
 
     def load_config(self, data_cfg):
@@ -202,7 +200,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(f"{self.ann_file}/aist_training_final_10k.json")
+        db = COCO(f"{self.ann_file}/aist_training_final_100k.json")
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -425,7 +423,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
         for action_category, indices in action_category_indices.items():
             _error = keypoint_mpjpe(preds[indices], gts[indices],
-                                    masks[indices])
+                                    masks[indices], alignment)
             name_value_tuples.append((f'{err_name}_{action_category}', _error))
 
         return name_value_tuples
