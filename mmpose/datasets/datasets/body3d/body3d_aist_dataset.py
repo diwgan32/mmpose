@@ -2,9 +2,11 @@
 import os.path as osp
 import warnings
 import json
-
+import sys
+import math
 from collections import OrderedDict, defaultdict
 from pycocotools.coco import COCO
+import random
 
 import mmcv
 import numpy as np
@@ -103,7 +105,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
     def _transform_coords(self, joint_cam):
         # SPINE is average of thorax and pelvis
-        head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])
+        head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])/4.0
         transformed_coords = joint_cam[self.AIST_TO_H36M]
         thorax = (transformed_coords[self.H36M_LSHOULDER_IDX] + transformed_coords[self.H36M_RSHOULDER_IDX])/2.0
         pelvis = (transformed_coords[self.H36M_LHIP_IDX] + transformed_coords[self.H36M_RHIP_IDX])/2.0
@@ -112,7 +114,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         transformed_coords[self.H36M_SPINE_IDX] = spine
         transformed_coords[self.H36M_THORAX_IDX] = thorax
         transformed_coords[self.H36M_HEAD_IDX] = head
-
+        a = list(range(17))
+        random.shuffle(a)
         return transformed_coords
 
     def load_config(self, data_cfg):
@@ -199,7 +202,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(f"{self.ann_file}/aist_training_final_1m.json")
+        db = COCO(f"{self.ann_file}/aist_training_final_10k.json")
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -234,12 +237,12 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
         
-        data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
-        data_info["joints_2d"] = np.array(data_info["joints_2d"])
-        data_info["scales"] = np.array(data_info["scales"])
-        data_info["centers"] = np.array(data_info["centers"])
+        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/1000
+        data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
+        data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
+        data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
-
+        print(data_info["joints_3d"].dtype)
         return data_info
 
     @staticmethod
@@ -394,7 +397,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
-            masks.append(gt_visible)
+            masks.append(np.ones((17, 1)))
 
             action = self._parse_aist_imgname(
                 self.data_info['imgnames'][target_id])[1]
@@ -416,6 +419,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             raise ValueError(f'Invalid mode: {mode}')
 
         error = keypoint_mpjpe(preds, gts, masks, alignment)
+        #print(preds, gts)
+        #input("? ")
         name_value_tuples = [(err_name, error)]
 
         for action_category, indices in action_category_indices.items():
@@ -466,12 +471,12 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
                 # Action is dance genre, situation, music id, choreography id
                 action = f"{parts[0]}_{parts[1]}_{parts[4]}_{parts[5]}"
-                for camera_str in list(data):
-                    matrix = ata[camera_str]["matrix"]
-                    R = Body3DAISTDataset.rodrigues_vec_to_rotation_mat(data[camera_str]["rotation"])
-
+                for camera_obj in data:
+                    matrix = camera_obj["matrix"]
+                    R = Body3DAISTDataset.rodrigues_vec_to_rotation_mat(camera_obj["rotation"])
+                    camera_str = camera_obj["name"]
                     # Convert to m
-                    T = np.array(data[camera_str]["translation"])/1000.0
+                    T = np.array(camera_obj["translation"])/1000.0
                     c = np.array([matrix[0][2], matrix[1][2]])
                     f = np.array([matrix[0][0], matrix[1][1]])
                     camera_params[(subj, action, camera_str)] = {

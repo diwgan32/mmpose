@@ -222,11 +222,11 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
         """Get a sample with given index."""
         results = copy.deepcopy(self.prepare_data(idx))
         disp_vid = False
-        disp_img = False
+        disp_img = True
         results['ann_info'] = self.ann_info
         name = results['target_image_path'].split("/")[1].split(".")[0]
         if (not disp_vid and not disp_img): return self.pipeline(results)
-        path = "/home/fsuser/ProcessedDatasets/human3.6m/images"
+        path = "/data/ProcessedDatasets/aist_processed/"
         if (disp_vid):
             writer = cv2.VideoWriter(
                 filename=results['target_image_path'].split("/")[1].split(".")[0]+".mp4",
