@@ -1,8 +1,12 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import os.path as osp
 import warnings
+import json
+import sys
+import math
 from collections import OrderedDict, defaultdict
 from pycocotools.coco import COCO
+import random
 
 import mmcv
 import numpy as np
@@ -14,7 +18,7 @@ from ...builder import DATASETS
 
 
 @DATASETS.register_module()
-class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
+class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
     """AIST dataset for 3D human pose estimation.
 
 
@@ -87,6 +91,10 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
             cfg = Config.fromfile('configs/_base_/datasets/h36m.py')
             dataset_info = cfg._cfg_dict['dataset_info']
 
+        self.protocol = 2
+        self.root_idx = 0
+        self.joint_num = 17
+
         super().__init__(
             ann_file,
             img_prefix,
@@ -95,18 +103,17 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
             dataset_info=dataset_info,
             test_mode=test_mode)
 
-    def _transform_coords(joint_cam):
+    def _transform_coords(self, joint_cam):
         # SPINE is average of thorax and pelvis
-        head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])
-        transformed_coords = joint_cam[AIST_TO_H36M]
-        thorax = (transformed_coords[H36M_LSHOULDER_IDX] + transformed_coords[H36M_RSHOULDER_IDX])/2.0
-        pelvis = (transformed_coords[H36M_LHIP_IDX] + transformed_coords[H36M_RHIP_IDX])/2.0
+        head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])/4.0
+        transformed_coords = joint_cam[self.PANOPTIC_TO_H36M]
+        thorax = (transformed_coords[self.H36M_LSHOULDER_IDX] + transformed_coords[self.H36M_RSHOULDER_IDX])/2.0
+        pelvis = (transformed_coords[self.H36M_LHIP_IDX] + transformed_coords[self.H36M_RHIP_IDX])/2.0
 
         spine = (thorax + pelvis)/2.0
-        transformed_coords[H36M_SPINE_IDX] = spine
-        transformed_coords[H36M_THORAX_IDX] = thorax
-        transformed_coords[H36M_HEAD_IDX] = head
-
+        transformed_coords[self.H36M_SPINE_IDX] = spine
+        transformed_coords[self.H36M_THORAX_IDX] = thorax
+        transformed_coords[self.H36M_HEAD_IDX] = head
         return transformed_coords
 
     def load_config(self, data_cfg):
@@ -141,6 +148,43 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
 
         self.ann_info.update(ann_info)
 
+    @staticmethod
+    def process_bbox(bbox, width, height):
+        # sanitize bboxes
+        x, y, w, h = bbox
+        x1 = np.max((0, x))
+        y1 = np.max((0, y))
+        x2 = np.min((width - 1, x1 + np.max((0, w - 1))))
+        y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
+        if w*h > 0 and x2 >= x1 and y2 >= y1:
+            bbox = np.array([x1, y1, x2-x1, y2-y1])
+        else:
+            return None
+
+        # aspect ratio preserving bbox
+        w = bbox[2]
+        h = bbox[3]
+        c_x = bbox[0] + w/2.
+        c_y = bbox[1] + h/2.
+        aspect_ratio = 1
+        if w > aspect_ratio * h:
+            h = w / aspect_ratio
+        elif w < aspect_ratio * h:
+            w = h * aspect_ratio
+        bbox[2] = w*1.25
+        bbox[3] = h*1.25
+        bbox[0] = c_x - bbox[2]/2.
+        bbox[1] = c_y - bbox[3]/2.
+        return bbox
+
+    @staticmethod
+    def _cam2pixel(cam_coord, f, c):
+        x = cam_coord[:, 0] / (cam_coord[:, 2] + 1e-8) * f[0] + c[0]
+        y = cam_coord[:, 1] / (cam_coord[:, 2] + 1e-8) * f[1] + c[1]
+        z = cam_coord[:, 2]
+        img_coord = np.concatenate((x[:,None], y[:,None], z[:,None]),1)
+        return img_coord
+
     def load_annotations(self):
         """
             Reads AIST annotations, returns them in the following
@@ -156,13 +200,13 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(self.train_annot_path)
+        db = COCO(f"{self.ann_file}/panoptic_training_0.json")
         data_info = {
             'imgnames': [],
-            "annotation_id": [],
             'joints_3d': [],
             'joints_2d': [],
             'scales': [],
+            'subject_ids': [],
             'centers': [],
         }
         for aid in db.anns.keys():
@@ -172,7 +216,7 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
             img = db.loadImgs(ann['image_id'])[0]
             width, height = img['width'], img['height']
 
-            bbox = process_bbox(ann['bbox'], width, height)
+            bbox = Body3DPanopticDataset.process_bbox(ann['bbox'], width, height)
             if bbox is None: continue
 
             # joints and vis
@@ -181,39 +225,36 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
 
             joint_cam = np.array(ann['joint_cam'])
             joint_cam = self._transform_coords(joint_cam)
-            joint_img = cam2pixel(joint_cam, f, c)
+            joint_img = Body3DPanopticDataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
 
-            img_path = osp.join(self.img_dir, db.imgs[ann['image_id']]['file_name'])
             data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
-            data_info["annotation_id"].append((db.imgs[ann['image_id']]['file_name'], db.imgs[ann['image_id']]["subject_id"]))
+            data_info["subject_ids"].append(0)
             data_info["joints_3d"].append(joint_cam)
-            data_info["joints_2d"].append(joint_img[, :2])
+            data_info["joints_2d"].append(joint_img[:, :2])
             data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
         
-        data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
-        data_info["joints_2d"] = np.array(data_info["joints_2d"])
-        data_info["scales"] = np.array(data_info["scales"])
-        data_info["centers"] = np.array(data_info["centers"])
+        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/1000
+        data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
+        data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
+        data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
 
         return data_info
 
     @staticmethod
-    def _parse_panoptic_imgname(annotation_id):
+    def _parse_pantoptic_imgname(imgname, subject_id):
         """Parse imgname to get information of subject, action and camera.
 
-        See here for name format: https://aistdancedb.ongaaccel.jp/data_formats/
         """
-        imgname, subject = annotation_id
         parts = imgname.split("/")
-
         action = parts[0]
-        camera = parts[1]
-        return subject, action, camera
+        # Action is dance genre, situation, music id, choreography id
+        camera = parts[1].split("_")[1]
+        return subject_id, action, camera
 
     def build_sample_indices(self):
         """Split original videos into sequences and build frame indices.
@@ -224,8 +265,9 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
         # Group frames into videos. Assume that self.data_info is
         # chronological.
         video_frames = defaultdict(list)
-        for idx, annot in enumerate(self.data_info['annotation_id']):
-            subj, action, camera = self._parse_panoptic_imgname(annot)
+        for idx, imgname in enumerate(self.data_info['imgnames']):
+            subj = self.data_info["subject_ids"][idx]
+            subj, action, camera = self._parse_pantoptic_imgname(imgname, subj)
 
             # TODO: Is _all_ going to be in self.actions and self.subjects?
             if '_all_' not in self.actions and action not in self.actions:
@@ -352,10 +394,10 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
-            masks.append(gt_visible)
+            masks.append(np.ones((17, 1)))
 
-            action = self._parse_h36m_imgname(
-                self.data_info['imgnames'][target_id])[1]
+            action = self._parse_pantoptic_imgname(
+                self.data_info['imgnames'][target_id], None)[1]
             action_category = action.split('_')[0]
             action_category_indices[action_category].append(idx)
 
@@ -374,21 +416,54 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
             raise ValueError(f'Invalid mode: {mode}')
 
         error = keypoint_mpjpe(preds, gts, masks, alignment)
+        #print(preds, gts)
+        #input("? ")
         name_value_tuples = [(err_name, error)]
 
         for action_category, indices in action_category_indices.items():
             _error = keypoint_mpjpe(preds[indices], gts[indices],
-                                    masks[indices])
+                                    masks[indices], alignment)
             name_value_tuples.append((f'{err_name}_{action_category}', _error))
 
         return name_value_tuples
 
     def _load_camera_param(self, camera_param_file):
-        """Load camera parameters from file."""
-        return mmcv.load(camera_param_file)
+        camera_params = {}
+        sequences_f = open(f"{camera_param_file}/sequences")
+        video_to_camera = {}
+        list_of_sequences = sequences_f.readlines()
+        sequences_f.close()
+        
+        for sequence in list_of_sequences:
+            seq_name = sequence.strip()
+            with open(osp.join(camera_param_file, seq_name, "calibration_{seq_name}.json"),'r') as f:
+                data = json.load(f)
+                # Action is dance genre, situation, music id, choreography id
+                action = seq_name
+                cameras = data["cameras"]
+                for camera_obj in cameras:
+                    if (camera_obj["type"] != "hd"):
+                        continue
+                    matrix = camera_obj["K"]
+                    R = camera_obj["R"]
+                    camera_str = camera_obj["name"].split("_")[1]
+                    # Convert to m
+                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][0][1], camera_obj["t"][0][2]])/1000.0
+                    c = np.array([matrix[0][2], matrix[1][2]])
+                    f = np.array([matrix[0][0], matrix[1][1]])
+                    camera_params[(action, camera_str)] = {
+                        "R": R,
+                        "T": T,
+                        "c": c,
+                        "f": f,
+                        'w': 640,
+                        'h': 360
+                    }
+
+        return camera_params
 
     def get_camera_param(self, imgname):
         """Get camera parameters of a frame by its image name."""
         assert hasattr(self, 'camera_param')
-        subj, _, camera = self._parse_h36m_imgname(imgname)
-        return self.camera_param[(subj, camera)]
+        subj, action, camera = self._parse_pantoptic_imgname(imgname, None)
+        return self.camera_param[(action, camera)]
