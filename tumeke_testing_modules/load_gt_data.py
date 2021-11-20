@@ -44,7 +44,7 @@ def closest_subject_heuristic_raw(keypoint_obj):
     return np.array([r_se_ed, r_sh_ed, l_se_ed, l_sh_ed]).mean()
 
 
-def ground_truth_processing(labels):
+def ground_truth_processing(labels, multiple_subjects):
     '''Tranform ground truth data into data frame
 
         1) Get Subjects
@@ -79,7 +79,11 @@ def ground_truth_processing(labels):
         for i, person in enumerate(persons_t):
 
             # Filter on subject's keypoints
-            person_keypoints_t = [k for k in keypoints_t if k['parentID'] == person['id']]
+            if multiple_subjects:
+                person_keypoints_t = [k for k in keypoints_t if k['parentID'] == person['id']]
+            else: 
+                person_keypoints_t = keypoints_t
+                
             # Filter out unused keypoints
             person_keypoints_t = [k for k in person_keypoints_t if k['value']['keypointlabels'][0] in joint_order]
 
@@ -124,13 +128,13 @@ def ground_truth_processing(labels):
     return frame_array
 
 
-def get_gt_df(file):
+def get_gt_df(file, multiple_subjects):
     '''Load joint file from label studio and processes the data'''
     with open('work_dirs/tumeke_testing/ground_truth_labels/{}.json'.format(file)) as f:
         labels = json.load(f)
         
     # raw array is "frame_array" !
-    gt_frame_array = ground_truth_processing(labels)
+    gt_frame_array = ground_truth_processing(labels, multiple_subjects)
     gt_df = pd.DataFrame(gt_frame_array)
     
     # Order by ID
