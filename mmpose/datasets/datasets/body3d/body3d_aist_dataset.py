@@ -210,13 +210,18 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             'scales': [],
             'centers': [],
         }
-
-        for file in files:
-            db = COCO(file)
-            
+        sequences_actually_read = []
+        count = 0
+        flag = False
+        for file_ in files:
+            if (random.randint(1, 100) >= 25):
+                continue
+            sequences_actually_read.append(file_)
+            db = COCO(file_)
             for aid in db.anns.keys():
                 ann = db.anns[aid]
-                if (not db.imgs[ann['image_id']]["is_train"]):
+                if ("is_train" in db.imgs[ann['image_id']] and 
+                        not db.imgs[ann['image_id']]["is_train"]):
                     continue
                 img = db.loadImgs(ann['image_id'])[0]
                 width, height = img['width'], img['height']
@@ -237,16 +242,23 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
                 data_info["joints_3d"].append(joint_cam)
                 data_info["joints_2d"].append(joint_img[:, :2])
+                
                 data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
                 data_info["centers"].append(center)
-        
-        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/1000
+                count += 1
+
+            if (flag):
+                break
+        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
         data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
         data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
-        print(data_info["joints_3d"].dtype)
+        f = open("sequences_read_aist.txt", "w")
+        for seq in sequences_actually_read:
+            f.write(seq + "\n")
+        f.close()
         return data_info
 
     @staticmethod
@@ -402,7 +414,6 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             preds.append(pred)
             gts.append(gt)
             masks.append(np.ones((17, 1)))
-
             action = self._parse_aist_imgname(
                 self.data_info['imgnames'][target_id])[1]
             action_category = action.split('_')[0]

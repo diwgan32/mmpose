@@ -226,13 +226,13 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
         results['ann_info'] = self.ann_info
         name = results['target_image_path'].split("/")[1].split(".")[0]
         if (not disp_vid and not disp_img): return self.pipeline(results)
-        path = "/data/ProcessedDatasets/aist_processed/"
+        path = "/data/ProcessedDatasets/aist_processed_all/aist_processed/"
         if (disp_vid):
             writer = cv2.VideoWriter(
                 filename=results['target_image_path'].split("/")[1].split(".")[0]+".mp4",
                 fps=30,
                 fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
-                frameSize=(1000, 1002)
+                frameSize=(640, 360)
             )
             if (results["image_paths"].shape[0] == 0):
                 print("Missing data!")

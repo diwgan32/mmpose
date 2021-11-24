@@ -288,7 +288,6 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             joint_img = Body3DH36MModifiedDataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
-            
             bbox = Body3DH36MModifiedDataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
             if bbox is None: continue
             root_cam = joint_cam[self.root_idx]
