@@ -85,7 +85,7 @@ test_data_cfg = dict(
     joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
     'cpn_ft_h36m_dbb_test.npy',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/'
+    camera_param_file=f'{data_root}/cameras'
 )
 
 train_pipeline = [
@@ -142,21 +142,21 @@ data = dict(
         type='Body3DAISTDataset',
         ann_file=f'{data_root}/',
         img_prefix=f'{data_root}/',
-        data_cfg=data_cfg,
+        data_cfg=train_data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
         type='Body3DAISTDataset',
         ann_file=f'{data_root}/',
         img_prefix=f'{data_root}/',
-        data_cfg=data_cfg,
+        data_cfg=test_data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
         type='Body3DAISTDataset',
         ann_file=f'{data_root}/',
         img_prefix=f'{data_root}/',
-        data_cfg=data_cfg,
+        data_cfg=test_data_cfg,
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}})
 )
