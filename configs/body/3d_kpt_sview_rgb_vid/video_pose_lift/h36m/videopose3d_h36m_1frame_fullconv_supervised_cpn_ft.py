@@ -61,7 +61,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/data/ProcessedDatasets/panoptic_processed/'
+data_root = '/home/fsuser/ProcessedDatasets/human3.6m'
 train_data_cfg = dict(
     num_joints=17,
     seq_len=1,
@@ -72,7 +72,7 @@ train_data_cfg = dict(
     joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
     'cpn_ft_h36m_dbb_train.npy',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/'
+    camera_param_file=f'{data_root}/annotations'
 )
 
 test_data_cfg = dict(
@@ -85,7 +85,7 @@ test_data_cfg = dict(
     joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
     'cpn_ft_h36m_dbb_test.npy',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/'
+    camera_param_file=f'{data_root}/annotations'
 )
 
 train_pipeline = [
@@ -139,23 +139,23 @@ data = dict(
     val_dataloader=dict(samples_per_gpu=256),
     test_dataloader=dict(samples_per_gpu=256),
     train=dict(
-        type='Body3DPanopticDataset',
-        ann_file=f'{data_root}/',
-        img_prefix=f'{data_root}/',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
+        img_prefix=f'{data_root}/images/',
         data_cfg=train_data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
-        type='Body3DPanopticDataset',
-        ann_file=f'{data_root}/',
-        img_prefix=f'{data_root}/',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
+        img_prefix=f'{data_root}/images/',
         data_cfg=test_data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='Body3DPanopticDataset',
-        ann_file=f'{data_root}/',
-        img_prefix=f'{data_root}/',
+        type='Body3DH36MModifiedDataset',
+        ann_file=f'{data_root}/annotations',
+        img_prefix=f'{data_root}/images/',
         data_cfg=test_data_cfg,
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
