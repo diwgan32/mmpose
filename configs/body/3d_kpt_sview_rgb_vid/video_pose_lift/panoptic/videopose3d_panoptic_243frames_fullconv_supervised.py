@@ -61,7 +61,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/data/ProcessedDatasets/aist_processed_all/aist_processed/'
+data_root = '/data/ProcessedDatasets/panoptic_processed/'
 data_cfg = dict(
     num_joints=17,
     seq_len=243,
@@ -70,7 +70,7 @@ data_cfg = dict(
     temporal_padding=True,
     joint_2d_src='gt',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/cameras'
+    camera_param_file=f'{data_root}/'
 )
 
 train_pipeline = [
@@ -124,21 +124,21 @@ data = dict(
     val_dataloader=dict(samples_per_gpu=128),
     test_dataloader=dict(samples_per_gpu=128),
     train=dict(
-        type='Body3DAISTDataset',
+        type='Body3DPanopticDataset',
         ann_file=f'{data_root}/',
         img_prefix=f'{data_root}/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
-        type='Body3DAISTDataset',
+        type='Body3DPanopticDataset',
         ann_file=f'{data_root}/',
         img_prefix=f'{data_root}/',
         data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='Body3DAISTDataset',
+        type='Body3DPanopticDataset',
         ann_file=f'{data_root}/',
         img_prefix=f'{data_root}/',
         data_cfg=data_cfg,
