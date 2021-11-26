@@ -200,7 +200,8 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        db = COCO(f"{self.ann_file}/panoptic_training_final_10k.json")
+        files = glob.glob(f"{self.ann_file}/panoptic_training_1.json")
+
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -209,35 +210,44 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
             'subject_ids': [],
             'centers': [],
         }
-        for aid in db.anns.keys():
-            ann = db.anns[aid]
-            if (not db.imgs[ann['image_id']]["is_train"]):
-                continue
-            img = db.loadImgs(ann['image_id'])[0]
-            width, height = img['width'], img['height']
 
-            bbox = Body3DPanopticDataset.process_bbox(ann['bbox'], width, height)
-            if bbox is None: continue
-
-            # joints and vis
-            f = np.array(db.imgs[ann['image_id']]["camera_param"]['focal'])
-            c = np.array(db.imgs[ann['image_id']]["camera_param"]['princpt'])
-
-            joint_cam = np.array(ann['joint_cam'])
-            joint_cam = self._transform_coords(joint_cam)
-            joint_img = Body3DPanopticDataset._cam2pixel(joint_cam, f, c)
-            joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
-            joint_vis = np.ones((self.joint_num,1))
-
-            data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
-            data_info["subject_ids"].append(0)
-            data_info["joints_3d"].append(joint_cam)
-            data_info["joints_2d"].append(joint_img[:, :2])
-            data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
-            center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
-            data_info["centers"].append(center)
+        for file_ in files:
+            db = COCO(file_)
         
-        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/1000
+            for aid in db.anns.keys():
+                ann = db.anns[aid]
+                if ("is_train" in db.imgs[ann['image_id']] and 
+                        not db.imgs[ann['image_id']]["is_train"]):
+                    continue
+                img = db.loadImgs(ann['image_id'])[0]
+                width, height = img['width'], img['height']
+
+                bbox = Body3DPanopticDataset.process_bbox(ann['bbox'], width, height)
+                if bbox is None: continue
+
+                # joints and vis
+                f = np.array(db.imgs[ann['image_id']]["camera_param"]['focal'])
+                c = np.array(db.imgs[ann['image_id']]["camera_param"]['princpt'])
+
+                joint_cam = np.array(ann['joint_cam'])
+                joint_cam = self._transform_coords(joint_cam)
+                joint_vis = np.all(joint_cam == 0, axis=1)
+
+                joint_img = Body3DPanopticDataset._cam2pixel(joint_cam, f, c)
+                joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
+                
+                joint_img = np.hstack((joint_img, joint_vis))
+                joint_cam = np.hstack((joint_cam, joint_vis))
+
+                data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
+                data_info["subject_ids"].append(db.imgs[ann['image_id']]['subject_id'])
+                data_info["joints_3d"].append(joint_cam)
+                data_info["joints_2d"].append(joint_img[:, :2])
+                data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
+                center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
+                data_info["centers"].append(center)
+        
+        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
         data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
         data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
@@ -394,10 +404,7 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
-            print(pred)
-            print(gt)
-            input("? ")
-            masks.append(np.ones((17, 1)))
+            masks.append(gt_visible)
 
             action = self._parse_pantoptic_imgname(
                 self.data_info['imgnames'][target_id], None)[1]
@@ -453,7 +460,7 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
                     R = camera_obj["R"]
                     camera_str = camera_obj["name"].split("_")[1]
                     # Convert to m
-                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][1][0], camera_obj["t"][2][0]])
+                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][1][0], camera_obj["t"][2][0]])/100
                     c = np.array([matrix[0][2], matrix[1][2]])
                     f = np.array([matrix[0][0], matrix[1][1]])
                     camera_params[(action, camera_str)] = {
@@ -461,8 +468,8 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
                         "T": T,
                         "c": c,
                         "f": f,
-                        'w': 640,
-                        'h': 360
+                        'w': 1920,
+                        'h': 1080
                     }
 
         return camera_params
