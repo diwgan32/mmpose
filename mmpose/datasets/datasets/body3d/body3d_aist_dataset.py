@@ -247,7 +247,9 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
                 data_info["centers"].append(center)
                 count += 1
-
+#                if (count >= 10000):
+#                    flag = True
+#                    break
             if (flag):
                 break
         data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
@@ -413,6 +415,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
+            np.set_printoptions(suppress=True)
             masks.append(np.ones((17, 1)))
             action = self._parse_aist_imgname(
                 self.data_info['imgnames'][target_id])[1]
@@ -432,14 +435,13 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             alignment = 'scale'
         else:
             raise ValueError(f'Invalid mode: {mode}')
-
-        error = keypoint_mpjpe(preds, gts, masks, alignment)
-        #print(preds, gts)
-        #input("? ")
+        error, preds = keypoint_mpjpe(preds, gts, masks, alignment)
+        np.save("preds.npy", preds)
+        np.save("gts.npy", gts)
         name_value_tuples = [(err_name, error)]
 
         for action_category, indices in action_category_indices.items():
-            _error = keypoint_mpjpe(preds[indices], gts[indices],
+            _error, _preds = keypoint_mpjpe(preds[indices], gts[indices],
                                     masks[indices], alignment)
             name_value_tuples.append((f'{err_name}_{action_category}', _error))
 
@@ -491,7 +493,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                     R = Body3DAISTDataset.rodrigues_vec_to_rotation_mat(camera_obj["rotation"])
                     camera_str = camera_obj["name"]
                     # Convert to m
-                    T = np.array(camera_obj["translation"])/1000.0
+                    #input("? ")
+                    T = np.array(camera_obj["translation"])/100.0
                     c = np.array([matrix[0][2], matrix[1][2]])
                     f = np.array([matrix[0][0], matrix[1][1]])
                     camera_params[(subj, action, camera_str)] = {
@@ -499,8 +502,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                         "T": T,
                         "c": c,
                         "f": f,
-                        'w': 640,
-                        'h': 360
+                        'w': 1920,
+                        'h': 1080
                     }
 
         return camera_params

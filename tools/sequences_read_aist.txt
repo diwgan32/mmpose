@@ -1,8 +1,0 @@
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_18.json
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_11.json
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_8.json
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_0.json
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_28.json
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_6.json
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_14.json
-/data/ProcessedDatasets/aist_processed_all/aist_processed/aist_training_21.json

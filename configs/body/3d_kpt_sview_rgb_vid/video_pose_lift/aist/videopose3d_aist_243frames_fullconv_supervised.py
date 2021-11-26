@@ -11,17 +11,17 @@ evaluation = dict(
 # optimizer settings
 optimizer = dict(
     type='Adam',
-    lr=1e-3,
+    lr=1e-5,
 )
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
     policy='exp',
     by_epoch=True,
-    gamma=0.975,
+    gamma=0.96,
 )
 
-total_epochs = 160
+total_epochs = 80
 
 log_config = dict(
     interval=20,

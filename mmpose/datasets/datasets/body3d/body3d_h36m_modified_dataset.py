@@ -179,7 +179,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         if not self.test_mode:
             return 5
         else:
-            return 1
+            return 5
     
     @staticmethod
     def _cam2pixel(cam_coord, f, c):
@@ -456,7 +456,6 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         preds = np.stack(preds)
         gts = np.stack(gts)
         masks = np.stack(masks).squeeze(-1) > 0
-
         err_name = mode.upper()
         if mode == 'mpjpe':
             alignment = 'none'
@@ -466,11 +465,13 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             alignment = 'scale'
         else:
             raise ValueError(f'Invalid mode: {mode}')
-        error = keypoint_mpjpe(preds, gts, masks, alignment)
+        error, preds = keypoint_mpjpe(preds, gts, masks, alignment)
+        np.save("preds.npy", preds)
+        np.save("gts.npy", gts)
         name_value_tuples = [(err_name, error)]
 
         for action_category, indices in action_category_indices.items():
-            _error = keypoint_mpjpe(preds[indices], gts[indices],
+            _error, _preds = keypoint_mpjpe(preds[indices], gts[indices],
                                     masks[indices])
             name_value_tuples.append((f'{err_name}_{action_category}', _error))
 

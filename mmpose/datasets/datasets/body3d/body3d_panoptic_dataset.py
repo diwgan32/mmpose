@@ -394,6 +394,9 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
+            print(pred)
+            print(gt)
+            input("? ")
             masks.append(np.ones((17, 1)))
 
             action = self._parse_pantoptic_imgname(
@@ -404,7 +407,8 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
         preds = np.stack(preds)
         gts = np.stack(gts)
         masks = np.stack(masks).squeeze(-1) > 0
-
+        np.save('preds.npy', preds)
+        np.save('gts.npy', gts)
         err_name = mode.upper()
         if mode == 'mpjpe':
             alignment = 'none'
@@ -449,7 +453,7 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
                     R = camera_obj["R"]
                     camera_str = camera_obj["name"].split("_")[1]
                     # Convert to m
-                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][1][0], camera_obj["t"][2][0]])/1000.0
+                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][1][0], camera_obj["t"][2][0]])
                     c = np.array([matrix[0][2], matrix[1][2]])
                     f = np.array([matrix[0][0], matrix[1][1]])
                     camera_params[(action, camera_str)] = {
