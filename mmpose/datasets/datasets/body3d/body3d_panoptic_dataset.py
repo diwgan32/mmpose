@@ -34,28 +34,31 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
     """
 
     PANOPTIC_JOINT_NAMES = [
+        'Neck',
         'Nose',
-        'L_Eye',
-        'R_Eye',
-        'L_Ear',
-        'R_Ear', \
+        'Pelvis',
         'L_Shoulder',
-        'R_Shoulder',
-        'L_Elbow',
-        'R_Elbow', \
+        'L_Elbow', \
         'L_Wrist',
-        'R_Wrist',
         'L_Hip',
+        'L_Knee',
+        'L_Ankle', \
+        'R_Shoulder',
+        'R_Elbow',
+        'R_Wrist',
         'R_Hip',
-        'L_Knee', \
+        'R_Knee',
+        'R_Ankle', \
         'R_Knee', \
-        'L_Ankle',
-        'R_Ankle',
-        "Pelvis"
+        'L_Eye',
+        'L_Ear',
+        "R_Eye",
+        "R_Ear"
     ]
 
+
     PANOPTIC_TO_H36M = [
-        17, 12, 14, 16, 11, 13, 15, -1, -1, 0, -1, 5, 7, 9, 6, 8, 10
+        2, 12, 13, 14, 6, 7, 8, -1, -1, 0, -1, 3, 4, 5, 9, 10, 12
     ]
 
     H36M_SPINE_IDX = 7
@@ -105,7 +108,7 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
 
     def _transform_coords(self, joint_cam):
         # SPINE is average of thorax and pelvis
-        head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])/4.0
+        head = (joint_cam[-1] + joint_cam[-2] + joint_cam[-3] + joint_cam[-4])/4.0
         transformed_coords = joint_cam[self.PANOPTIC_TO_H36M]
         thorax = (transformed_coords[self.H36M_LSHOULDER_IDX] + transformed_coords[self.H36M_RSHOULDER_IDX])/2.0
         pelvis = (transformed_coords[self.H36M_LHIP_IDX] + transformed_coords[self.H36M_RHIP_IDX])/2.0
