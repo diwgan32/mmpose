@@ -7,6 +7,7 @@ import math
 from collections import OrderedDict, defaultdict
 from pycocotools.coco import COCO
 import random
+import glob
 
 import mmcv
 import numpy as np
@@ -201,7 +202,7 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
         # get 2D joints
 
         files = glob.glob(f"{self.ann_file}/panoptic_training_1.json")
-
+        
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -210,7 +211,8 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
             'subject_ids': [],
             'centers': [],
         }
-
+        flag = False
+        count = 0
         for file_ in files:
             db = COCO(file_)
         
@@ -231,22 +233,28 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
 
                 joint_cam = np.array(ann['joint_cam'])
                 joint_cam = self._transform_coords(joint_cam)
-                joint_vis = np.all(joint_cam == 0, axis=1)
-
+                joint_vis = np.all(joint_cam != 0, axis=1)
+                joint_vis = np.expand_dims(joint_vis, axis=1)
                 joint_img = Body3DPanopticDataset._cam2pixel(joint_cam, f, c)
                 joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
-                
+                if (not np.any(joint_vis)):
+                    continue
                 joint_img = np.hstack((joint_img, joint_vis))
                 joint_cam = np.hstack((joint_cam, joint_vis))
-
                 data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
-                data_info["subject_ids"].append(db.imgs[ann['image_id']]['subject_id'])
+                data_info["subject_ids"].append(ann['subject_id'])
                 data_info["joints_3d"].append(joint_cam)
                 data_info["joints_2d"].append(joint_img[:, :2])
                 data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
                 data_info["centers"].append(center)
-        
+                count += 1
+                if (count >= 10000):
+                    flag = True
+                    break
+            if (flag):
+                break
+        print(len(data_info["joints_3d"]))
         data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
         data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
@@ -405,7 +413,6 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
             preds.append(pred)
             gts.append(gt)
             masks.append(gt_visible)
-
             action = self._parse_pantoptic_imgname(
                 self.data_info['imgnames'][target_id], None)[1]
             action_category = action.split('_')[0]
@@ -414,8 +421,6 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
         preds = np.stack(preds)
         gts = np.stack(gts)
         masks = np.stack(masks).squeeze(-1) > 0
-        np.save('preds.npy', preds)
-        np.save('gts.npy', gts)
         err_name = mode.upper()
         if mode == 'mpjpe':
             alignment = 'none'
@@ -426,13 +431,15 @@ class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
         else:
             raise ValueError(f'Invalid mode: {mode}')
 
-        error = keypoint_mpjpe(preds, gts, masks, alignment)
+        error, preds = keypoint_mpjpe(preds, gts, masks, alignment)
+        np.save('preds.npy', preds)
+        np.save('gts.npy', gts)
         #print(preds, gts)
         #input("? ")
         name_value_tuples = [(err_name, error)]
 
         for action_category, indices in action_category_indices.items():
-            _error = keypoint_mpjpe(preds[indices], gts[indices],
+            _error, _preds = keypoint_mpjpe(preds[indices], gts[indices],
                                     masks[indices], alignment)
             name_value_tuples.append((f'{err_name}_{action_category}', _error))
 
