@@ -222,11 +222,37 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
         """Get a sample with given index."""
         results = copy.deepcopy(self.prepare_data(idx))
         disp_vid = False
+        disp_raw_skel = False
         disp_img = False
         results['ann_info'] = self.ann_info
         name = results['target_image_path'].split("/")[1].split(".")[0]
-        if (not disp_vid and not disp_img): return self.pipeline(results)
+        if (not disp_vid and not disp_img and not disp_raw_skel): return self.pipeline(results)
         path = "/data/ProcessedDatasets/aist_processed_all/aist_processed/"
+        if (disp_raw_skel):
+            disp_name = results['target_image_path'].split("/")[1].split(".")[0]+".mp4"
+            writer = cv2.VideoWriter(
+                filename=results['target_image_path'].split("/")[1].split(".")[0]+".mp4",
+                fps=30,
+                fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
+                frameSize=(1000, 1000)
+            )
+            if (results["image_paths"].shape[0] == 0):
+                print("Missing data!")
+
+            for i in range(results["image_paths"].shape[0]):
+                tail = results["image_paths"][i]
+                img = f"{path}/{tail}"
+                processed_img = image.show_keypoints(
+                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0),
+                    1000,
+                    pose_kpt_color=np.ones((17, 3)) * 255,
+                    skeleton=self.ann_info['skeleton'],
+                    pose_link_color=np.ones((len(self.ann_info["skeleton"]), 3)) * 255
+                )
+
+                writer.write(processed_img)
+            writer.release()
+
         if (disp_vid):
             writer = cv2.VideoWriter(
                 filename=results['target_image_path'].split("/")[1].split(".")[0]+".mp4",
