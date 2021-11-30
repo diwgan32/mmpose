@@ -125,11 +125,11 @@ def show_keypoints(pose_result,
             thickness (int): Thickness of lines.
     """
 
-    img = np.zeros_like((canvas_shape, canvas_shape, 3), dtype=np.uint8)
-    
+    img = np.zeros((canvas_size, canvas_size, 3), dtype=np.uint8)
     pose_result += 1
-    pose_result *= (canvas_shape/2)
-    pose_result[:, 1] = canvas_shape - pose_result[:, 1]
+    pose_result *= (canvas_size/2)
+#    pose_result[:, 1] = canvas_size - pose_result[:, 1]
+    pose_result = np.expand_dims(np.hstack((pose_result*3, np.ones((17, 1)))), axis=0)
     return imshow_keypoints(img, pose_result, skeleton=skeleton, kpt_score_thr=kpt_score_thr,
         pose_kpt_color=pose_kpt_color, pose_link_color=pose_link_color, radius=radius,
         thickness=thickness, show_keypoint_weight=show_keypoint_weight)
@@ -235,6 +235,8 @@ def imshow_keypoints(img,
                             pos1,
                             pos2, (int(r), int(g), int(b)),
                             thickness=thickness)
+                else:
+                    print(pos1, pos2, kpts[sk[0], 2], kpts[sk[1], 2], img_w, img_h, sk_id)
 
     return img
 

@@ -1,6 +1,7 @@
 _base_ = ['../../../../_base_/datasets/h36m.py']
 log_level = 'INFO'
-load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_243frames_fullconv_supervised-880bea25_20210527.pth"
+#load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_243frames_fullconv_supervised-880bea25_20210527.pth"
+load_from = None
 resume_from = None
 dist_params = dict(backend='nccl')
 workflow = [('train', 1)]
@@ -61,7 +62,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/home/fsuser/ProcessedDatasets/human3.6m'
+data_root = '/data/h36m/'
 data_cfg = dict(
     num_joints=17,
     seq_len=243,

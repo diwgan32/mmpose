@@ -178,6 +178,9 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         bbox[1] = c_y - bbox[3]/2.
         return bbox
 
+    def _get_subsampling_ratio(self):
+        return 6
+
     @staticmethod
     def _cam2pixel(cam_coord, f, c):
         x = cam_coord[:, 0] / (cam_coord[:, 2] + 1e-8) * f[0] + c[0]
@@ -212,6 +215,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         }
         sequences_actually_read = []
         count = 0
+        sampling_ratio = self._get_subsampling_ratio()
         flag = False
         for file_ in files:
             if (random.randint(1, 100) >= 25):
@@ -227,6 +231,11 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 width, height = img['width'], img['height']
 
                 bbox = Body3DAISTDataset.process_bbox(ann['bbox'], width, height)
+
+                if count % sampling_ratio != 0:
+                    count += 1
+                    continue
+
                 if bbox is None: continue
 
                 # joints and vis
@@ -247,9 +256,9 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
                 data_info["centers"].append(center)
                 count += 1
-#                if (count >= 10000):
-#                    flag = True
-#                    break
+                if (count >= 100000):
+                    flag = True
+                    break
             if (flag):
                 break
         data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
