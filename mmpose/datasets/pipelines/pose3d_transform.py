@@ -154,10 +154,10 @@ class ImageCoordinateNormalization:
         center = np.array(
             [0.5 * results['image_width'], 0.5 * results['image_height']],
             dtype=np.float32)
-        scale = np.array(0.5 * results['image_width'], dtype=np.float32)
+        scale = np.array(0.5 * results['scales'], dtype=np.float32)
 
         for item in self.item:
-            results[item] = (results[item] - center) / scale
+            results[item] = (results[item]) / scale[:, None, None]
 
         if self.norm_camera:
             if self.static_camera:

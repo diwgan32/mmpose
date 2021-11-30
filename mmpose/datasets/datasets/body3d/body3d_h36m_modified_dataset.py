@@ -295,7 +295,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             data_info["imgnames"].append(img['file_name'])
             data_info["joints_3d"].append(joint_cam)
             data_info["joints_2d"].append(joint_img[:, :2])
-            data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
+            data_info["scales"].append(max(bbox[2], bbox[3]))
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
         data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
