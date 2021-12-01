@@ -100,6 +100,39 @@ def imshow_bboxes(img,
         mmcv.imwrite(img, out_file)
     return img
 
+def show_keypoints(pose_result,
+                   canvas_size,
+                     skeleton=None,
+                     kpt_score_thr=0.3,
+                     pose_kpt_color=None,
+                     pose_link_color=None,
+                     radius=4,
+                     thickness=1,
+                     show_keypoint_weight=False):
+    """Draw keypoints and links on a blank canvas.
+
+    Args:
+            pose_result (list[kpts]): The poses to draw. Each element kpts is
+                a set of K keypoints as an Kx3 numpy.ndarray, where each
+                keypoint is represented as x, y, score.
+            canvas_size (int, required): The square size to draw the skeleton on
+            kpt_score_thr (float, optional): Minimum score of keypoints
+                to be shown. Default: 0.3.
+            pose_kpt_color (np.array[Nx3]`): Color of N keypoints. If None,
+                the keypoint will not be drawn.
+            pose_link_color (np.array[Mx3]): Color of M links. If None, the
+                links will not be drawn.
+            thickness (int): Thickness of lines.
+    """
+
+    img = np.zeros((canvas_size, canvas_size, 3), dtype=np.uint8)
+    pose_result += 1
+    pose_result *= (canvas_size/2)
+#    pose_result[:, 1] = canvas_size - pose_result[:, 1]
+    pose_result = np.expand_dims(np.hstack((pose_result, np.ones((17, 1)))), axis=0)
+    return imshow_keypoints(img, pose_result, skeleton=skeleton, kpt_score_thr=kpt_score_thr,
+        pose_kpt_color=pose_kpt_color, pose_link_color=pose_link_color, radius=radius,
+        thickness=thickness, show_keypoint_weight=show_keypoint_weight)
 
 @deprecated_api_warning({'pose_limb_color': 'pose_link_color'})
 def imshow_keypoints(img,
@@ -132,7 +165,7 @@ def imshow_keypoints(img,
     img_h, img_w, _ = img.shape
  #   print("Saving...")
     for kpts in pose_result:
-        kpts = np.array(kpts, copy=False)
+        kpts = np.array(kpts, copy=False)/3.0
 #        print(kpts)
         # draw each point on image
         if pose_kpt_color is not None:
@@ -202,6 +235,8 @@ def imshow_keypoints(img,
                             pos1,
                             pos2, (int(r), int(g), int(b)),
                             thickness=thickness)
+                else:
+                    print(pos1, pos2, kpts[sk[0], 2], kpts[sk[1], 2], img_w, img_h, sk_id)
 
     return img
 

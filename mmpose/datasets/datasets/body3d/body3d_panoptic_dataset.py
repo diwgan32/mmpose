@@ -19,7 +19,7 @@ from ...builder import DATASETS
 
 
 @DATASETS.register_module()
-class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
+class Body3DPanopticDataset(Kpt3dSviewKpt2dDataset):
     """AIST dataset for 3D human pose estimation.
 
 
@@ -34,29 +34,32 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             validation dataset. Default: False.
     """
 
-    AIST_JOINT_NAMES = [
+    PANOPTIC_JOINT_NAMES = [
+        'Neck',
         'Nose',
-        'L_Eye',
-        'R_Eye',
-        'L_Ear',
-        'R_Ear', \
+        'Pelvis',
         'L_Shoulder',
-        'R_Shoulder',
-        'L_Elbow',
-        'R_Elbow', \
+        'L_Elbow', \
         'L_Wrist',
-        'R_Wrist',
         'L_Hip',
+        'L_Knee',
+        'L_Ankle', \
+        'R_Shoulder',
+        'R_Elbow',
+        'R_Wrist',
         'R_Hip',
-        'L_Knee', \
+        'R_Knee',
+        'R_Ankle', \
         'R_Knee', \
-        'L_Ankle',
-        'R_Ankle',
-        "Pelvis"
+        'L_Eye',
+        'L_Ear',
+        "R_Eye",
+        "R_Ear"
     ]
 
-    AIST_TO_H36M = [
-        17, 12, 14, 16, 11, 13, 15, -1, -1, 0, -1, 5, 7, 9, 6, 8, 10
+
+    PANOPTIC_TO_H36M = [
+        2, 12, 13, 14, 6, 7, 8, -1, -1, 0, -1, 3, 4, 5, 9, 10, 12
     ]
 
     H36M_SPINE_IDX = 7
@@ -106,8 +109,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
     def _transform_coords(self, joint_cam):
         # SPINE is average of thorax and pelvis
-        head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])/4.0
-        transformed_coords = joint_cam[self.AIST_TO_H36M]
+        head = (joint_cam[-1] + joint_cam[-2] + joint_cam[-3] + joint_cam[-4])/4.0
+        transformed_coords = joint_cam[self.PANOPTIC_TO_H36M]
         thorax = (transformed_coords[self.H36M_LSHOULDER_IDX] + transformed_coords[self.H36M_RSHOULDER_IDX])/2.0
         pelvis = (transformed_coords[self.H36M_LHIP_IDX] + transformed_coords[self.H36M_RHIP_IDX])/2.0
 
@@ -178,9 +181,6 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         bbox[1] = c_y - bbox[3]/2.
         return bbox
 
-    def _get_subsampling_ratio(self):
-        return 6
-
     @staticmethod
     def _cam2pixel(cam_coord, f, c):
         x = cam_coord[:, 0] / (cam_coord[:, 2] + 1e-8) * f[0] + c[0]
@@ -204,24 +204,21 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         """
         # get 2D joints
 
-        files = glob.glob(f"{self.ann_file}/aist_training_*.json")
-
+        files = glob.glob(f"{self.ann_file}/panoptic_training_1.json")
+        
         data_info = {
             'imgnames': [],
             'joints_3d': [],
             'joints_2d': [],
             'scales': [],
+            'subject_ids': [],
             'centers': [],
         }
-        sequences_actually_read = []
-        count = 0
-        sampling_ratio = self._get_subsampling_ratio()
         flag = False
+        count = 0
         for file_ in files:
-            if (random.randint(1, 100) >= 25):
-                continue
-            sequences_actually_read.append(file_)
             db = COCO(file_)
+        
             for aid in db.anns.keys():
                 ann = db.anns[aid]
                 if ("is_train" in db.imgs[ann['image_id']] and 
@@ -230,11 +227,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 img = db.loadImgs(ann['image_id'])[0]
                 width, height = img['width'], img['height']
 
-                bbox = Body3DAISTDataset.process_bbox(np.array(ann['bbox'])*3, 1920, 1080)
-                if count % sampling_ratio != 0:
-                    count += 1
-                    continue
-
+                bbox = Body3DPanopticDataset.process_bbox(ann['bbox'], width, height)
                 if bbox is None: continue
 
                 # joints and vis
@@ -243,48 +236,46 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
                 joint_cam = np.array(ann['joint_cam'])
                 joint_cam = self._transform_coords(joint_cam)
-                joint_img = Body3DAISTDataset._cam2pixel(joint_cam, f, c)
+                joint_vis = np.all(joint_cam != 0, axis=1)
+                joint_vis = np.expand_dims(joint_vis, axis=1)
+                joint_img = Body3DPanopticDataset._cam2pixel(joint_cam, f, c)
                 joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
-                joint_vis = np.ones((self.joint_num,1))
-
+                if (not np.any(joint_vis)):
+                    continue
+                joint_img = np.hstack((joint_img, joint_vis))
+                joint_cam = np.hstack((joint_cam, joint_vis))
                 data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
+                data_info["subject_ids"].append(ann['subject_id'])
                 data_info["joints_3d"].append(joint_cam)
                 data_info["joints_2d"].append(joint_img[:, :2])
-                
-                data_info["scales"].append(max(bbox[2], bbox[3]))
+                data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
-                data_info["centers"].append(joint_img[0, :2])
+                data_info["centers"].append(center)
                 count += 1
-                if (count >= 100000):
+                if (count >= 10000):
                     flag = True
                     break
             if (flag):
                 break
+        print(len(data_info["joints_3d"]))
         data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
         data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
         data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
-        f = open("sequences_read_aist.txt", "w")
-        for seq in sequences_actually_read:
-            f.write(seq + "\n")
-        f.close()
+
         return data_info
 
     @staticmethod
-    def _parse_aist_imgname(imgname):
+    def _parse_pantoptic_imgname(imgname, subject_id):
         """Parse imgname to get information of subject, action and camera.
 
-        See here for name format: https://aistdancedb.ongaaccel.jp/data_formats/
         """
-        video_name = imgname.split("/")[0]
-        parts = video_name.split("_")
-        subj = parts[3]
-
+        parts = imgname.split("/")
+        action = parts[0]
         # Action is dance genre, situation, music id, choreography id
-        action = f"{parts[0]}_{parts[1]}_{parts[4]}_{parts[5]}"
-        camera = parts[2]
-        return subj, action, camera
+        camera = parts[1].split("_")[1]
+        return subject_id, action, camera
 
     def build_sample_indices(self):
         """Split original videos into sequences and build frame indices.
@@ -296,7 +287,8 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         # chronological.
         video_frames = defaultdict(list)
         for idx, imgname in enumerate(self.data_info['imgnames']):
-            subj, action, camera = self._parse_aist_imgname(imgname)
+            subj = self.data_info["subject_ids"][idx]
+            subj, action, camera = self._parse_pantoptic_imgname(imgname, subj)
 
             # TODO: Is _all_ going to be in self.actions and self.subjects?
             if '_all_' not in self.actions and action not in self.actions:
@@ -423,17 +415,15 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
-            np.set_printoptions(suppress=True)
-            masks.append(np.ones((17, 1)))
-            action = self._parse_aist_imgname(
-                self.data_info['imgnames'][target_id])[1]
+            masks.append(gt_visible)
+            action = self._parse_pantoptic_imgname(
+                self.data_info['imgnames'][target_id], None)[1]
             action_category = action.split('_')[0]
             action_category_indices[action_category].append(idx)
 
         preds = np.stack(preds)
         gts = np.stack(gts)
         masks = np.stack(masks).squeeze(-1) > 0
-
         err_name = mode.upper()
         if mode == 'mpjpe':
             alignment = 'none'
@@ -443,9 +433,12 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
             alignment = 'scale'
         else:
             raise ValueError(f'Invalid mode: {mode}')
+
         error, preds = keypoint_mpjpe(preds, gts, masks, alignment)
-        np.save("preds.npy", preds)
-        np.save("gts.npy", gts)
+        np.save('preds.npy', preds)
+        np.save('gts.npy', gts)
+        #print(preds, gts)
+        #input("? ")
         name_value_tuples = [(err_name, error)]
 
         for action_category, indices in action_category_indices.items():
@@ -455,57 +448,32 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
 
         return name_value_tuples
 
-    @staticmethod
-    def rodrigues_vec_to_rotation_mat(rodrigues_vec):
-        theta = np.linalg.norm(rodrigues_vec)
-        if theta < sys.float_info.epsilon:              
-            rotation_mat = np.eye(3, dtype=float)
-        else:
-            r = rodrigues_vec / theta
-            I = np.eye(3, dtype=float)
-            r_rT = np.array([
-                [r[0]*r[0], r[0]*r[1], r[0]*r[2]],
-                [r[1]*r[0], r[1]*r[1], r[1]*r[2]],
-                [r[2]*r[0], r[2]*r[1], r[2]*r[2]]
-            ])
-            r_cross = np.array([
-                [0, -r[2], r[1]],
-                [r[2], 0, -r[0]],
-                [-r[1], r[0], 0]
-            ])
-            rotation_mat = math.cos(theta) * I + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
-        return rotation_mat 
-
     def _load_camera_param(self, camera_param_file):
         camera_params = {}
-        mapping_f = open(f"{camera_param_file}/mapping.txt")
+        sequences_f = open(f"{camera_param_file}/sequences")
         video_to_camera = {}
-        data = mapping_f.readlines()
-        for line in data:
-            line_str = line.strip()
-            video_to_camera[line_str.split(" ")[0]] = line_str.split(" ")[1]
-
-        mapping_f.close()
-
-        for video_name in list(video_to_camera.keys()):
-            with open(osp.join(camera_param_file, f"{video_to_camera[video_name]}.json"),'r') as f:
+        list_of_sequences = sequences_f.readlines()
+        sequences_f.close()
+        for sequence in list_of_sequences:
+            seq_name = sequence.strip()
+            if (not osp.isdir(osp.join(camera_param_file, seq_name))):
+                continue
+            with open(osp.join(camera_param_file, seq_name, f"calibration_{seq_name}.json"),'r') as f:
                 data = json.load(f)
-
-                parts = video_name.split("_")
-                subj = parts[3]
-
                 # Action is dance genre, situation, music id, choreography id
-                action = f"{parts[0]}_{parts[1]}_{parts[4]}_{parts[5]}"
-                for camera_obj in data:
-                    matrix = camera_obj["matrix"]
-                    R = Body3DAISTDataset.rodrigues_vec_to_rotation_mat(camera_obj["rotation"])
-                    camera_str = camera_obj["name"]
+                action = seq_name
+                cameras = data["cameras"]
+                for camera_obj in cameras:
+                    if (camera_obj["type"] != "hd"):
+                        continue
+                    matrix = camera_obj["K"]
+                    R = camera_obj["R"]
+                    camera_str = camera_obj["name"].split("_")[1]
                     # Convert to m
-                    #input("? ")
-                    T = np.array(camera_obj["translation"])/100.0
+                    T = np.array([camera_obj["t"][0][0], camera_obj["t"][1][0], camera_obj["t"][2][0]])/100
                     c = np.array([matrix[0][2], matrix[1][2]])
                     f = np.array([matrix[0][0], matrix[1][1]])
-                    camera_params[(subj, action, camera_str)] = {
+                    camera_params[(action, camera_str)] = {
                         "R": R,
                         "T": T,
                         "c": c,
@@ -519,5 +487,5 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
     def get_camera_param(self, imgname):
         """Get camera parameters of a frame by its image name."""
         assert hasattr(self, 'camera_param')
-        subj, action, camera = self._parse_aist_imgname(imgname)
-        return self.camera_param[(subj, action, camera)]
+        subj, action, camera = self._parse_pantoptic_imgname(imgname, None)
+        return self.camera_param[(action, camera)]

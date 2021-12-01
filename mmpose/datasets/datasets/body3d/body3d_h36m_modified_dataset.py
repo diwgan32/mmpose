@@ -179,7 +179,7 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         if not self.test_mode:
             return 5
         else:
-            return 1
+            return 5
     
     @staticmethod
     def _cam2pixel(cam_coord, f, c):
@@ -283,12 +283,11 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             # project world coordinate to cam, image coordinate space
             action_idx = img['action_idx']; subaction_idx = img['subaction_idx']; frame_idx = img['frame_idx'];
             joint_world = np.array(joints[str(subject)][str(action_idx)][str(subaction_idx)][str(frame_idx)], dtype=np.float32)
-            joint_world = self._transform_coords(joint_world)
+            #joint_world = self._transform_coords(joint_world)
             joint_cam = Body3DH36MModifiedDataset._world2cam(joint_world, R, t)
             joint_img = Body3DH36MModifiedDataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
-            
             bbox = Body3DH36MModifiedDataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
             if bbox is None: continue
             root_cam = joint_cam[self.root_idx]
@@ -296,8 +295,8 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             data_info["imgnames"].append(img['file_name'])
             data_info["joints_3d"].append(joint_cam)
             data_info["joints_2d"].append(joint_img[:, :2])
-            data_info["scales"].append([bbox[2]/200, bbox[3]/200])
-            center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
+            data_info["scales"].append(max(bbox[2], bbox[3]))
+            center = joint_img[0, :2]
             data_info["centers"].append(center)
         data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
         data_info["joints_2d"] = np.array(data_info["joints_2d"])
@@ -457,7 +456,6 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
         preds = np.stack(preds)
         gts = np.stack(gts)
         masks = np.stack(masks).squeeze(-1) > 0
-
         err_name = mode.upper()
         if mode == 'mpjpe':
             alignment = 'none'
@@ -467,11 +465,13 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             alignment = 'scale'
         else:
             raise ValueError(f'Invalid mode: {mode}')
-        error = keypoint_mpjpe(preds, gts, masks, alignment)
+        error, preds = keypoint_mpjpe(preds, gts, masks, alignment)
+        np.save("preds.npy", preds)
+        np.save("gts.npy", gts)
         name_value_tuples = [(err_name, error)]
 
         for action_category, indices in action_category_indices.items():
-            _error = keypoint_mpjpe(preds[indices], gts[indices],
+            _error, _preds = keypoint_mpjpe(preds[indices], gts[indices],
                                     masks[indices])
             name_value_tuples.append((f'{err_name}_{action_category}', _error))
 

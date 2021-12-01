@@ -1,6 +1,6 @@
 _base_ = ['../../../../_base_/datasets/h36m.py']
 log_level = 'INFO'
-load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_243frames_fullconv_supervised_cpn_ft-88f5abbb_20210527.pth"
+load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_243frames_fullconv_supervised-880bea25_20210527.pth"
 resume_from = None
 dist_params = dict(backend='nccl')
 workflow = [('train', 1)]
@@ -11,17 +11,17 @@ evaluation = dict(
 # optimizer settings
 optimizer = dict(
     type='Adam',
-    lr=1e-4,
+    lr=1e-5,
 )
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
     policy='exp',
     by_epoch=True,
-    gamma=0.98,
+    gamma=0.96,
 )
 
-total_epochs = 200
+total_epochs = 80
 
 log_config = dict(
     interval=20,
@@ -61,30 +61,16 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/home/fsuser/ProcessedDatasets/human3.6m'
-train_data_cfg = dict(
+data_root = '/data/aist_processed/'
+data_cfg = dict(
     num_joints=17,
     seq_len=243,
     seq_frame_interval=1,
     causal=False,
     temporal_padding=True,
-    joint_2d_src='detection',
-    joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
-    'cpn_ft_h36m_dbb_train.npy',
+    joint_2d_src='gt',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotations',
-)
-test_data_cfg = dict(
-    num_joints=17,
-    seq_len=243,
-    seq_frame_interval=1,
-    causal=False,
-    temporal_padding=True,
-    joint_2d_src='detection',
-    joint_2d_det_file=f'{data_root}/joint_2d_det_files/' +
-    'cpn_ft_h36m_dbb_test.npy',
-    need_camera_param=True,
-    camera_param_file=f'{data_root}/annotations',
+    camera_param_file=f'{data_root}/cameras'
 )
 
 train_pipeline = [
@@ -134,28 +120,28 @@ test_pipeline = val_pipeline
 
 data = dict(
     samples_per_gpu=128,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     val_dataloader=dict(samples_per_gpu=128),
     test_dataloader=dict(samples_per_gpu=128),
     train=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotations',
-        img_prefix=f'{data_root}/images/',
-        data_cfg=train_data_cfg,
+        type='Body3DAISTDataset',
+        ann_file=f'{data_root}/',
+        img_prefix=f'{data_root}/',
+        data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotations',
-        img_prefix=f'{data_root}/images/',
-        data_cfg=test_data_cfg,
+        type='Body3DAISTDataset',
+        ann_file=f'{data_root}/',
+        img_prefix=f'{data_root}/',
+        data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='Body3DH36MDataset',
-        ann_file=f'{data_root}/annotations',
-        img_prefix=f'{data_root}/images/',
-        data_cfg=test_data_cfg,
+        type='Body3DAISTDataset',
+        ann_file=f'{data_root}/',
+        img_prefix=f'{data_root}/',
+        data_cfg=data_cfg,
         pipeline=test_pipeline,
-        dataset_info={{_base_.dataset_info}}),
+        dataset_info={{_base_.dataset_info}})
 )

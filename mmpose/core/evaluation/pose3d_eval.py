@@ -51,9 +51,9 @@ def keypoint_mpjpe(pred, gt, mask, alignment='none'):
         pred = pred * scale_factor[:, None, None]
     else:
         raise ValueError(f'Invalid value for alignment: {alignment}')
-    error = np.linalg.norm(pred - gt, ord=2, axis=-1)[mask].mean()
 
-    return error
+    error = np.linalg.norm(pred - gt, ord=2, axis=-1)[mask].mean()
+    return error, pred
 
 
 def keypoint_3d_pck(pred, gt, mask, alignment='none', threshold=0.15):

@@ -7,7 +7,8 @@ from .samplers import DistributedSampler
 from .datasets import (  # isort:skip
     AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
     AnimalLocustDataset, AnimalMacaqueDataset, AnimalPoseDataset,
-    AnimalZebraDataset, Body3DH36MDataset, Body3DH36MModifiedDataset, BottomUpAicDataset,
+    AnimalZebraDataset, Body3DH36MDataset, Body3DH36MModifiedDataset, Body3DAISTDataset,
+    BottomUpAicDataset,
     BottomUpCocoDataset, BottomUpCocoWholeBodyDataset,
     BottomUpCrowdPoseDataset, BottomUpMhpDataset, DeepFashionDataset,
     Face300WDataset, FaceAFLWDataset, FaceCocoWholeBodyDataset,
@@ -19,7 +20,7 @@ from .datasets import (  # isort:skip
     TopDownFreiHandDataset, TopDownH36MDataset, TopDownJhmdbDataset,
     TopDownMhpDataset, TopDownMpiiDataset, TopDownMpiiTrbDataset,
     TopDownOCHumanDataset, TopDownOneHand10KDataset, TopDownPanopticDataset,
-    TopDownPoseTrack18Dataset)
+    TopDownPoseTrack18Dataset, Body3DPanopticDataset)
 
 __all__ = [
     'TopDownCocoDataset', 'BottomUpCocoDataset', 'BottomUpMhpDataset',
@@ -34,9 +35,10 @@ __all__ = [
     'TopDownPoseTrack18Dataset', 'TopDownJhmdbDataset', 'TopDownMhpDataset',
     'DeepFashionDataset', 'Face300WDataset', 'FaceAFLWDataset',
     'FaceWFLWDataset', 'FaceCOFWDataset', 'FaceCocoWholeBodyDataset',
-    'Body3DH36MDataset', 'Body3DH36MModifiedDataset', 'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
+    'Body3DH36MDataset', 'Body3DH36MModifiedDataset', 'Body3DAISTDataset',
+    'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
     'build_dataloader', 'build_dataset', 'Compose', 'DistributedSampler',
-    'DATASETS', 'PIPELINES', 'DatasetInfo'
+    'DATASETS', 'PIPELINES', 'DatasetInfo', "Body3DPanopticDataset"
 ]
