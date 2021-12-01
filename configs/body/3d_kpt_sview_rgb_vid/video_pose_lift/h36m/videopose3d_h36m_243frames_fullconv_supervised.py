@@ -12,7 +12,7 @@ evaluation = dict(
 # optimizer settings
 optimizer = dict(
     type='Adam',
-    lr=1e-3,
+    lr=2e-3,
 )
 optimizer_config = dict(grad_clip=None)
 # learning policy
@@ -120,10 +120,10 @@ val_pipeline = [
 test_pipeline = val_pipeline
 
 data = dict(
-    samples_per_gpu=128,
-    workers_per_gpu=2,
-    val_dataloader=dict(samples_per_gpu=128),
-    test_dataloader=dict(samples_per_gpu=128),
+    samples_per_gpu=256,
+    workers_per_gpu=4,
+    val_dataloader=dict(samples_per_gpu=256),
+    test_dataloader=dict(samples_per_gpu=256),
     train=dict(
         type='Body3DH36MModifiedDataset',
         ann_file=f'{data_root}/annotations',

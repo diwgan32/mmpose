@@ -230,8 +230,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 img = db.loadImgs(ann['image_id'])[0]
                 width, height = img['width'], img['height']
 
-                bbox = Body3DAISTDataset.process_bbox(ann['bbox'], width, height)
-
+                bbox = Body3DAISTDataset.process_bbox(np.array(ann['bbox'])*3, 1920, 1080)
                 if count % sampling_ratio != 0:
                     count += 1
                     continue
@@ -252,9 +251,9 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 data_info["joints_3d"].append(joint_cam)
                 data_info["joints_2d"].append(joint_img[:, :2])
                 
-                data_info["scales"].append(max(bbox[2]/200, bbox[3]/200))
+                data_info["scales"].append(max(bbox[2], bbox[3]))
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
-                data_info["centers"].append(center)
+                data_info["centers"].append(joint_img[0, :2])
                 count += 1
                 if (count >= 100000):
                     flag = True

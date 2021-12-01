@@ -129,7 +129,7 @@ def show_keypoints(pose_result,
     pose_result += 1
     pose_result *= (canvas_size/2)
 #    pose_result[:, 1] = canvas_size - pose_result[:, 1]
-    pose_result = np.expand_dims(np.hstack((pose_result*3, np.ones((17, 1)))), axis=0)
+    pose_result = np.expand_dims(np.hstack((pose_result, np.ones((17, 1)))), axis=0)
     return imshow_keypoints(img, pose_result, skeleton=skeleton, kpt_score_thr=kpt_score_thr,
         pose_kpt_color=pose_kpt_color, pose_link_color=pose_link_color, radius=radius,
         thickness=thickness, show_keypoint_weight=show_keypoint_weight)
