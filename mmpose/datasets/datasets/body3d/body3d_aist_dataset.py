@@ -218,7 +218,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         sampling_ratio = self._get_subsampling_ratio()
         flag = False
         for file_ in files:
-            if (random.randint(1, 100) >= 25):
+            if (random.randint(1, 100) >= 50):
                 continue
             sequences_actually_read.append(file_)
             db = COCO(file_)
@@ -255,9 +255,6 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
                 data_info["centers"].append(joint_img[0, :2])
                 count += 1
-                if (count >= 100000):
-                    flag = True
-                    break
             if (flag):
                 break
         data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
