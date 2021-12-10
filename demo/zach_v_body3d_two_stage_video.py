@@ -9,6 +9,7 @@ import mmcv
 import numpy as np
 import json
 import pickle
+import time
 
 from mmpose.apis import (extract_pose_sequence, get_track_id,
                          inference_pose_lifter_model,
@@ -33,10 +34,10 @@ def covert_keypoint_definition(keypoints, pose_det_dataset, pose_lift_dataset):
         pose_lift_dataset (str): Name of the dataset for pose lifter model.
     """
     if pose_det_dataset == 'TopDownH36MDataset' and \
-            pose_lift_dataset == 'Body3DH36MDataset':
+    (pose_lift_dataset == 'Body3DH36MDataset' or pose_lift_dataset == 'Body3DH36MModifiedDataset'):
         return keypoints
     elif pose_det_dataset == 'TopDownCocoDataset' and \
-            pose_lift_dataset == 'Body3DH36MDataset':
+            (pose_lift_dataset == 'Body3DH36MDataset' or pose_lift_dataset == 'Body3DH36MModifiedDataset'):
         keypoints_new = np.zeros((17, keypoints.shape[1]))
         # pelvis is in the middle of l_hip and r_hip
         keypoints_new[0] = (keypoints[11] + keypoints[12]) / 2
@@ -168,51 +169,53 @@ def process_video(args):
         'model is supported for the 1st stage (2D pose detection)'
 
 #     print("pose_det_dataset->", pose_det_model.cfg.data['test']['type'])
-    
     pose_det_dataset = pose_det_model.cfg.data['test']['type']
-
     pose_det_results_list = []
     next_id = 0
     pose_det_results = []
     idx = 0
-    print(f"Video len: {len(video)}")
-    for frame in video:
-        pose_det_results_last = pose_det_results
+    if (args.detections_2d == ""):
+        print(f"Video len: {len(video)}")
+        for frame in video:
+            pose_det_results_last = pose_det_results
+            
+            # test a single image, the resulting box is (x1, y1, x2, y2)
+            mmdet_results = inference_detector(person_det_model, frame)
 
-        # test a single image, the resulting box is (x1, y1, x2, y2)
-        mmdet_results = inference_detector(person_det_model, frame)
+            # keep the person class bounding boxes.
+            person_det_results = process_mmdet_results(mmdet_results,
+                                                       args.det_cat_id)
 
-        # keep the person class bounding boxes.
-        person_det_results = process_mmdet_results(mmdet_results,
-                                                   args.det_cat_id)
+            # make person results for single image
+            pose_det_results, _ = inference_top_down_pose_model(
+                pose_det_model,
+                frame,
+                person_det_results,
+                bbox_thr=args.bbox_thr,
+                format='xyxy',
+                dataset=pose_det_dataset,
+                return_heatmap=False,
+                outputs=None)
 
-        # make person results for single image
-        pose_det_results, _ = inference_top_down_pose_model(
-            pose_det_model,
-            frame,
-            person_det_results,
-            bbox_thr=args.bbox_thr,
-            format='xyxy',
-            dataset=pose_det_dataset,
-            return_heatmap=False,
-            outputs=None)
+            # get track id for each person instance
+            pose_det_results, next_id = get_track_id(
+                pose_det_results,
+                pose_det_results_last,
+                next_id,
+                use_oks=args.use_oks_tracking,
+                tracking_thr=args.tracking_thr,
+                use_one_euro=args.euro,
+                fps=video.fps)
+            idx += 1
+            if (idx % 100 == 0): print(f"Idx: {idx}")
+            pose_det_results_list.append(copy.deepcopy(pose_det_results))
 
-        # get track id for each person instance
-        pose_det_results, next_id = get_track_id(
-            pose_det_results,
-            pose_det_results_last,
-            next_id,
-            use_oks=args.use_oks_tracking,
-            tracking_thr=args.tracking_thr,
-            use_one_euro=args.euro,
-            fps=video.fps)
-        idx += 1
-        if (idx % 100 == 0): print(f"Idx: {idx}")
-        pose_det_results_list.append(copy.deepcopy(pose_det_results))
-    
-    # Pickle keypoints
-    with open(f'work_dirs/tumeke_testing/pickle_files/{args.video_name}.p', 'wb') as outfile:
-        pickle.dump(pose_det_results_list, outfile)
+        # Pickle keypoints
+        with open(f'work_dirs/tumeke_testing/pickle_files/{args.video_name}.p', 'wb') as outfile:
+            pickle.dump(pose_det_results_list, outfile)
+    else:
+        with open(args.detections_2d, 'rb') as f:
+            pose_det_results_list = pickle.load(f)
         
     # Second stage: Pose lifting
     print('Stage 2: 2D-to-3D pose lifting.')
@@ -258,12 +261,14 @@ def process_video(args):
     for i, pose_det_results in enumerate(
             mmcv.track_iter_progress(pose_det_results_list)):
         # extract and pad input pose2d sequence
+        
+                
         pose_results_2d = extract_pose_sequence(
             pose_det_results_list,
             frame_idx=i,
             causal=data_cfg.causal,
             seq_len=data_cfg.seq_len,
-            step=data_cfg.seq_frame_interval)
+            step=3)
         print("Len", len(pose_results_2d))
         # 2D-to-3D pose lifting
         pose_lift_results = inference_pose_lifter_model(
@@ -272,11 +277,13 @@ def process_video(args):
             dataset=pose_lift_dataset,
             with_track_id=True,
             image_size=video.resolution,
-            norm_pose_2d=args.norm_pose_2d)
-
+            norm_pose_2d=args.norm_pose_2d,
+            dataset_info=pose_lift_model.cfg.dataset_info,
+            output_num=i)
         # Pose processing
         pose_lift_results_vis = []
         for idx, res in enumerate(pose_lift_results):
+            
             keypoints_3d = res['keypoints_3d']
             # exchange y,z-axis, and then reverse the direction of x,z-axis
             keypoints_3d = keypoints_3d[..., [0, 2, 1]]

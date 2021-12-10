@@ -222,7 +222,7 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
         """Get a sample with given index."""
         results = copy.deepcopy(self.prepare_data(idx))
         disp_vid = False
-        disp_pipeline_skel = False
+        disp_pipeline_skel = True
         disp_img = False
         results['ann_info'] = self.ann_info
         name = results['target_image_path'].split("/")[1].split(".")[0]
@@ -254,6 +254,7 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             writer.release()
 
         if (disp_pipeline_skel):
+            print("PROCESSING")
             disp_name = results['target_image_path'].split("/")[1].split(".")[0]+"_skel.mp4"
             writer = cv2.VideoWriter(
                 filename=results['target_image_path'].split("/")[1].split(".")[0]+"_skel.mp4",

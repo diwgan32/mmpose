@@ -2,6 +2,7 @@
 import os
 import warnings
 
+import time
 import cv2
 import mmcv
 import numpy as np
@@ -322,13 +323,15 @@ def _inference_single_pose_model(model,
     ]
 
     # forward the model
+    t1 = time.time()
     with torch.no_grad():
         result = model(
             img=batch_data['img'],
             img_metas=batch_data['img_metas'],
             return_loss=False,
             return_heatmap=return_heatmap)
-
+    print(f"Time: {time.time() - t1}")
+        
     return result['preds'], result['output_heatmap']
 
 
@@ -432,6 +435,7 @@ def inference_top_down_pose_model(model,
 
     with OutputHook(model, outputs=outputs, as_tensor=False) as h:
         # poses is results['pred'] # N x 17x 3
+        
         poses, heatmap = _inference_single_pose_model(
             model,
             img_or_path,
@@ -439,7 +443,6 @@ def inference_top_down_pose_model(model,
             dataset=dataset,
             dataset_info=dataset_info,
             return_heatmap=return_heatmap)
-
         if return_heatmap:
             h.layer_outputs['heatmap'] = heatmap
 

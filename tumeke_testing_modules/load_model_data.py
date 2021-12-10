@@ -25,7 +25,7 @@ joint_order = [
     "right_ankle" 
 ]
 
-def get_wrnch_raw_data(file):
+def get_wrnch_raw_data(file, frame_width, frame_height):
     '''Load Wrnch data as a nested python list'''
     filename = 'work_dirs/tumeke_testing/wrnch_jsons/{}.json'.format(file)
     f = open(filename, "r")
@@ -34,8 +34,6 @@ def get_wrnch_raw_data(file):
     
     standard_format_data = []
     wrnch_to_hrnet = [16, 19, 17, 20, 18, 13, 12, 14, 11, 15, 10, 3, 2, 4, 1, 5, 0]
-    frame_width = 720 # Update AUTOMATICALLY!
-    frame_height = 1280 # Update AUTOMATICALLY!
     for i in range(len(data["frames"])):
         wrnch_frame = data["frames"][i]
         single_frame = []
@@ -51,8 +49,8 @@ def get_wrnch_raw_data(file):
             kpts2d[:, 0] *= frame_width
             kpts2d[:, 1] *= frame_height
             kpts2d = np.where(kpts2d < 0, 0, kpts2d)
-
-            standard_format = np.hstack((kpts2d[wrnch_to_hrnet], np.ones((17, 1))))
+            scores = np.array(single_person_data["pose2d"]["scores"])[wrnch_to_hrnet]
+            standard_format = np.hstack((kpts2d[wrnch_to_hrnet], scores[:, None]))
             single_frame.append({
                 "keypoints": standard_format
             })
@@ -61,10 +59,10 @@ def get_wrnch_raw_data(file):
     return standard_format_data
 
 
-def get_hrnet_raw_data(file):
+def get_pickle_joint_data(file):
     '''Pull pickled data'''
     # file_name = re.search('(.*)(?:[.])', file).group(1)
-    with open ('work_dirs/tumeke_testing/pickle_files/{}.p'.format(file), 'rb') as fp:
+    with open (file, 'rb') as fp:
         raw_data = pickle.load(fp)
 
     '''Load picked data into numpy.
@@ -175,23 +173,27 @@ def raw_data_to_dataframe(raw_data):
     #TODO(znoland): Add column with the name of the video?
 
 
-
-def get_hrnet_wrnch_dfs(file):
+def get_hrnet_posenet_wrnch_dfs(file, width, height):
     '''Loads target file into data frames for further analysis'''
     
-    hrnet_raw_data = get_hrnet_raw_data(file)
+    hrnet_raw_data = get_pickle_joint_data(f'work_dirs/tumeke_testing/pickle_files/{file}.p')
+    posenet_raw_data = get_pickle_joint_data(f'work_dirs/tumeke_testing/posenet_pickle_files/{file}.p')
+    
     print('hrnet data loaded')
-    wrnch_raw_data = get_wrnch_raw_data(file)
+    wrnch_raw_data = get_wrnch_raw_data(file, width, height)
     print('wrnch data loaded')
     
     hrnet_df = raw_data_to_dataframe(hrnet_raw_data)
     print('hrnet data formatted')
     print('hrnet_df shape:', hrnet_df.shape)
+    posenet_df = raw_data_to_dataframe(posenet_raw_data)
+    print('posenet data formatted')
+    print('posenet_df shape:', posenet_df.shape)
     wrnch_df = raw_data_to_dataframe(wrnch_raw_data)
     print('wrnch data formatted')
     print('wrnch_df shape:', wrnch_df.shape)
     
-    return hrnet_df, wrnch_df
+    return hrnet_df, posenet_df, wrnch_df
     
     
 

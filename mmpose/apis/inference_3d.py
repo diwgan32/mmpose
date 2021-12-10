@@ -1,13 +1,14 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import warnings
-
+import traceback
 import numpy as np
 import torch
 from mmcv.parallel import collate, scatter
-
+from mmpose.datasets import DatasetInfo
+import cv2
 from mmpose.datasets.pipelines import Compose
 from .inference import LoadImage, _box2cs, _xywh2xyxy, _xyxy2xywh
-
+from mmpose.core.visualization import image
 
 def extract_pose_sequence(pose_results, frame_idx, causal, seq_len, step=1):
     """Extract the target frame from 2D pose results, and pad the sequence to a
@@ -203,13 +204,42 @@ def _collate_pose_sequence(pose_results, with_track_id=True, target_frame=-1):
     return pose_sequences
 
 
+def process_bbox(bbox, width, height):
+    # sanitize bboxes
+    x, y, w, h = bbox
+    x1 = np.max((0, x))
+    y1 = np.max((0, y))
+    x2 = np.min((width - 1, x1 + np.max((0, w - 1))))
+    y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
+    if w*h > 0 and x2 >= x1 and y2 >= y1:
+        bbox = np.array([x1, y1, x2-x1, y2-y1])
+    else:
+        return None
+
+    # aspect ratio preserving bbox
+    w = bbox[2]
+    h = bbox[3]
+    c_x = bbox[0] + w/2.
+    c_y = bbox[1] + h/2.
+    aspect_ratio = 1
+    if w > aspect_ratio * h:
+        h = w / aspect_ratio
+    elif w < aspect_ratio * h:
+        w = h * aspect_ratio
+    bbox[2] = w*1.25
+    bbox[3] = h*1.25
+    bbox[0] = c_x - bbox[2]/2.
+    bbox[1] = c_y - bbox[3]/2.
+    return bbox
+    
 def inference_pose_lifter_model(model,
                                 pose_results_2d,
                                 dataset=None,
                                 dataset_info=None,
                                 with_track_id=True,
                                 image_size=None,
-                                norm_pose_2d=False):
+                                norm_pose_2d=False,
+                                output_num=0):
     """Inference 3D pose from 2D pose sequences using a pose lifter model.
 
     Args:
@@ -245,10 +275,10 @@ def inference_pose_lifter_model(model,
     test_pipeline = Compose(cfg.test_pipeline)
 
     if dataset_info is not None:
-        flip_pairs = dataset_info.flip_pairs
-        assert 'stats_info' in dataset_info._dataset_info
-        bbox_center = dataset_info._dataset_info['stats_info']['bbox_center']
-        bbox_scale = dataset_info._dataset_info['stats_info']['bbox_scale']
+        dataset_info_obj = DatasetInfo(dataset_info)
+        flip_pairs = [[1, 4], [2, 5], [3, 6], [11, 14], [12, 15], [13, 16]]
+        bbox_center = np.array([[528, 427]], dtype=np.float32)
+        bbox_scale = 400
     else:
         warnings.warn(
             'dataset is deprecated.'
@@ -256,7 +286,7 @@ def inference_pose_lifter_model(model,
             'Check https://github.com/open-mmlab/mmpose/pull/663 for details.',
             DeprecationWarning)
         # TODO: These will be removed in the later versions.
-        if dataset == 'Body3DH36MDataset':
+        if dataset == 'Body3DH36MDataset' or dataset == 'Body3DH36MModifiedDataset':
             flip_pairs = [[1, 4], [2, 5], [3, 6], [11, 14], [12, 15], [13, 16]]
             bbox_center = np.array([[528, 427]], dtype=np.float32)
             bbox_scale = 400
@@ -274,6 +304,7 @@ def inference_pose_lifter_model(model,
         return []
 
     batch_data = []
+    count = 0
     for seq in pose_sequences_2d:
         pose_2d = seq['keypoints'].astype(np.float32)
         T, K, C = pose_2d.shape
@@ -284,7 +315,10 @@ def inference_pose_lifter_model(model,
             input_2d_visible = pose_2d[..., 2:3]
         else:
             input_2d_visible = np.ones((T, K, 1), dtype=np.float32)
-
+        
+        for i in range(1, input_2d.shape[0]):
+            if (np.all(input_2d[i] == 0)):
+                input_2d[i] = input_2d[i-1]
         # TODO: Will be removed in the later versions
         # Dummy 3D input
         # This is for compatibility with configs in mmpose<=v0.14.0, where a
@@ -298,10 +332,23 @@ def inference_pose_lifter_model(model,
         # target_image_path is required. This part will be removed in the
         # future.
         target_image_path = None
-
+        bbox_min = np.min(input_2d, axis=1)
+        bbox_max = np.max(input_2d, axis=1)
+        bbox = np.hstack((bbox_min, bbox_max - bbox_min))
+        bbox_final = np.zeros_like(bbox)
+        for i in range(bbox.shape[0]):
+            bbox_final[i] = process_bbox(bbox[i], image_size[0], image_size[1])
+        centers = input_2d[:, 0, :]
+        scale = np.expand_dims(np.max(bbox_final[2:], axis=1), axis=1)
+        scale = np.hstack((scale, scale))
+        scale = np.where(np.isnan(scale), max(image_size[0], image_size[1])/2, scale)
+        centers[:, 0] = np.where(centers[:, 0] == 0, image_size[0]/2, centers[:, 0])
+        centers[:, 1] = np.where(centers[:, 1] == 0, image_size[1]/2, centers[:, 1])
         data = {
             'input_2d': input_2d,
             'input_2d_visible': input_2d_visible,
+            'scales': scale,
+            'centers': centers,
             'target': target,
             'target_visible': target_visible,
             'target_image_path': target_image_path,
@@ -315,10 +362,36 @@ def inference_pose_lifter_model(model,
             assert len(image_size) == 2
             data['image_width'] = image_size[0]
             data['image_height'] = image_size[1]
-
+        
+        
         data = test_pipeline(data)
         batch_data.append(data)
+        
+#         output = f"test_skel_{output_num}.mp4"
+#         disp_name = output
+#         writer = cv2.VideoWriter(
+#             filename=disp_name,
+#             fps=30,
+#             fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
+#             frameSize=(1000, 1000)
+#         )
+        
+#         a = data["input"].cpu().detach().numpy()
+#         for i in range(a.shape[1]):
+            
+#             arr = a[:, i].reshape((17, 2))
+#             processed_img = image.show_keypoints(
+#                 arr,
+#                 1000,
+#                 pose_kpt_color=np.ones((17, 3)) * 255,
+#                 skeleton=dataset_info_obj.skeleton,
+#                 pose_link_color=np.ones((len(dataset_info_obj.skeleton), 3)) * 255
+#             )
 
+#             writer.write(processed_img)
+#         writer.release()
+        
+            
     batch_data = collate(batch_data, samples_per_gpu=len(batch_data))
     if next(model.parameters()).is_cuda:
         device = next(model.parameters()).device
@@ -441,19 +514,23 @@ def vis_3d_pose_result(model,
 
     if hasattr(model, 'module'):
         model = model.module
-
-    img = model.show_result(
-        result,
-        img,
-        skeleton,
-        radius=radius,
-        thickness=thickness,
-        pose_kpt_color=pose_kpt_color,
-        pose_link_color=pose_link_color,
-        num_instances=num_instances,
-        show=show,
-        out_file=out_file)
-
+      
+    try:
+        img = model.show_result(
+            result,
+            img,
+            skeleton,
+            radius=radius,
+            thickness=thickness,
+            pose_kpt_color=pose_kpt_color,
+            pose_link_color=pose_link_color,
+            num_instances=num_instances,
+            show=show,
+            out_file=out_file)
+    except:
+        print(traceback.format_exc, flush=True)
+        return img
+    
     return img
 
 
