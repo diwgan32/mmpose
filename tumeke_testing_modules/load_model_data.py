@@ -178,7 +178,7 @@ def get_hrnet_posenet_wrnch_dfs(file, width, height):
     
     hrnet_raw_data = get_pickle_joint_data(f'work_dirs/tumeke_testing/pickle_files/{file}.p')
     posenet_raw_data = get_pickle_joint_data(f'work_dirs/tumeke_testing/posenet_pickle_files/{file}.p')
-    
+    openpose_raw_data = get_pickle_joint_data(f'work_dirs/tumeke_testing/openpose_pickle_files/{file}.p')
     print('hrnet data loaded')
     wrnch_raw_data = get_wrnch_raw_data(file, width, height)
     print('wrnch data loaded')
@@ -190,10 +190,13 @@ def get_hrnet_posenet_wrnch_dfs(file, width, height):
     print('posenet data formatted')
     print('posenet_df shape:', posenet_df.shape)
     wrnch_df = raw_data_to_dataframe(wrnch_raw_data)
+    openpose_df = raw_data_to_dataframe(openpose_raw_data)
     print('wrnch data formatted')
     print('wrnch_df shape:', wrnch_df.shape)
+    print('openpose data formatted')
+    print('openpose_df shape:', openpose_df.shape)
     
-    return hrnet_df, posenet_df, wrnch_df
+    return hrnet_df, posenet_df, openpose_df, wrnch_df
     
     
 
