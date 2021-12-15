@@ -112,6 +112,7 @@ https://user-images.githubusercontent.com/15977946/124654387-0fd3c500-ded1-11eb-
 - [x] [InterHand2.6M](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#interhand2-6m-eccv-2020) \[[homepage](https://mks0601.github.io/InterHand2.6M/)\] (ECCV'2020)
 - [x] [DeepFashion](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#deepfashion-cvpr-2016) \[[homepage](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion/LandmarkDetection.html)\] (CVPR'2016)
 - [x] [Animal-Pose](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#animal-pose-iccv-2019) \[[homepage](https://sites.google.com/view/animal-pose/)\] (ICCV'2019)
+- [x] [AP-10K](https://arxiv.org/abs/2108.12617) \[[homepage](https://github.com/AlexTheBad/AP-10K)\] (NeurIPS'2021)
 - [x] [Horse-10](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#horse-10-wacv-2021) \[[homepage](http://www.mackenziemathislab.org/horse10)\] (WACV'2021)
 - [x] [MacaquePose](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#macaquepose-biorxiv-2020) \[[homepage](http://www.pri.kyoto-u.ac.jp/datasets/macaquepose/index.html)\] (bioRxiv'2020)
 - [x] [Vinegar Fly](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#vinegar-fly-nature-methods-2019) \[[homepage](https://github.com/jgraving/DeepPoseKit-Data)\] (Nature Methods'2019)
@@ -162,6 +163,12 @@ https://user-images.githubusercontent.com/15977946/124654387-0fd3c500-ded1-11eb-
 | hrnet_w48  |  384x288   |    **1.23**     |                                       2.20                                       |  **0.767**   |                                     0.763                                     |
 
 更多详情可见 [基准测试](docs/benchmark.md)。
+
+## 推理速度
+
+我们总结了 MMPose 中主要模型的复杂度信息和推理速度，包括模型的计算复杂度、参数数量，以及以不同的批处理大小在 CPU 和 GPU 上的推理速度。
+
+详细信息可见 [模型推理速度](docs_zh-CN/inference_speed_summary.md).
 
 ## 安装
 
@@ -228,6 +235,9 @@ MMPose 是一款由不同学校和公司共同贡献的开源项目。我们感�
 - [MMEditing](https://github.com/open-mmlab/mmediting): OpenMMLab 图像视频编辑工具箱
 - [MMOCR](https://github.com/open-mmlab/mmocr): OpenMMLab 全流程文字检测识别理解工具包
 - [MMGeneration](https://github.com/open-mmlab/mmgeneration): OpenMMLab 新一代生成模型工具箱
+- [MMFlow](https://github.com/open-mmlab/mmflow): OpenMMLab 光流估计工具箱与测试基准
+- [MMFewShot](https://github.com/open-mmlab/mmfewshot): OpenMMLab 少样本学习工具箱与测试基准
+- [MMHuman3D](https://github.com/open-mmlab/mmhuman3d): OpenMMLab 人体参数化模型工具箱与测试基准
 
 ## 欢迎加入 OpenMMLab 社区
 

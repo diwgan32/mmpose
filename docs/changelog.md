@@ -1,5 +1,64 @@
 # Changelog
 
+## v0.21.0 (06/12/2021)
+
+**Highlights**
+
+- Support ["Learning Temporal Pose Estimation from Sparsely-Labeled Videos"](https://arxiv.org/abs/1906.04016), NeurIPS'2019 ([\#932](https://github.com/open-mmlab/mmpose/pull/932), [\#1006](https://github.com/open-mmlab/mmpose/pull/1006), [\#1036](https://github.com/open-mmlab/mmpose/pull/1036), [\#1060](https://github.com/open-mmlab/mmpose/pull/1060)) @liqikai9
+- Add ViPNAS-MobileNetV3 models ([\#1025](https://github.com/open-mmlab/mmpose/pull/1025)) @luminxu, @jin-s13
+- Add [inference speed benchmark](/docs/inference_speed_summary.md) ([\#1028](https://github.com/open-mmlab/mmpose/pull/1028), [\#1034](https://github.com/open-mmlab/mmpose/pull/1034), [\#1044](https://github.com/open-mmlab/mmpose/pull/1044)) @liqikai9
+
+**New Features**
+
+- Support ["Learning Temporal Pose Estimation from Sparsely-Labeled Videos"](https://arxiv.org/abs/1906.04016), NeurIPS'2019 ([\#932](https://github.com/open-mmlab/mmpose/pull/932), [\#1006](https://github.com/open-mmlab/mmpose/pull/1006), [\#1036](https://github.com/open-mmlab/mmpose/pull/1036)) @liqikai9
+- Add ViPNAS-MobileNetV3 models ([\#1025](https://github.com/open-mmlab/mmpose/pull/1025)) @luminxu, @jin-s13
+- Add light-weight top-down models for whole-body keypoint detection ([\#1009](https://github.com/open-mmlab/mmpose/pull/1009), [\#1020](https://github.com/open-mmlab/mmpose/pull/1020), [\#1055](https://github.com/open-mmlab/mmpose/pull/1055)) @luminxu, @ly015
+- Add HRNet checkpoints with various settings on PoseTrack18 ([\#1035](https://github.com/open-mmlab/mmpose/pull/1035)) @liqikai9
+
+**Improvements**
+
+- Add [inference speed benchmark](/docs/inference_speed_summary.md) ([\#1028](https://github.com/open-mmlab/mmpose/pull/1028), [\#1034](https://github.com/open-mmlab/mmpose/pull/1034), [\#1044](https://github.com/open-mmlab/mmpose/pull/1044)) @liqikai9
+- Update model metafile format ([\#1001](https://github.com/open-mmlab/mmpose/pull/1001)) @ly015
+- Support minus output feature index in mobilenet_v3 ([\#1005](https://github.com/open-mmlab/mmpose/pull/1005)) @luminxu
+- Improve documentation quality ([\#1018](https://github.com/open-mmlab/mmpose/pull/1018), [\#1026](https://github.com/open-mmlab/mmpose/pull/1026), [\#1027](https://github.com/open-mmlab/mmpose/pull/1027), [\#1031](https://github.com/open-mmlab/mmpose/pull/1031), [\#1038](https://github.com/open-mmlab/mmpose/pull/1038), [\#1046](https://github.com/open-mmlab/mmpose/pull/1046), [\#1056](https://github.com/open-mmlab/mmpose/pull/1056), [\#1057](https://github.com/open-mmlab/mmpose/pull/1057)) @edybk, @luminxu, @ly015, @jin-s13
+- Set default random seed in training initialization ([\#1030](https://github.com/open-mmlab/mmpose/pull/1030)) @ly015
+- Skip CI when only specific files changed ([\#1041](https://github.com/open-mmlab/mmpose/pull/1041), [\#1059](https://github.com/open-mmlab/mmpose/pull/1059)) @QwQ2000, @ly015
+- Automatically cancel uncompleted action runs when new commit arrives ([\#1053](https://github.com/open-mmlab/mmpose/pull/1053)) @ly015
+
+**Bug Fixes**
+
+- Update pose tracking demo to be compatible with latest mmtracking ([\#1014](https://github.com/open-mmlab/mmpose/pull/1014)) @jin-s13
+- Fix symlink creation failure when installed in Windows environments ([\#1039](https://github.com/open-mmlab/mmpose/pull/1039)) @QwQ2000
+- Fix AP-10K dataset sigmas ([\#1040](https://github.com/open-mmlab/mmpose/pull/1040)) @jin-s13
+
+## v0.20.0 (01/11/2021)
+
+**Highlights**
+
+- Add AP-10K dataset for animal pose estimation ([\#987](https://github.com/open-mmlab/mmpose/pull/987)) @Annbless, @AlexTheBad, @jin-s13, @ly015
+- Support TorchServe ([\#979](https://github.com/open-mmlab/mmpose/pull/979)) @ly015
+
+**New Features**
+
+- Add AP-10K dataset for animal pose estimation ([\#987](https://github.com/open-mmlab/mmpose/pull/987)) @Annbless, @AlexTheBad, @jin-s13, @ly015
+- Add HRNetv2 checkpoints on 300W and COFW datasets ([\#980](https://github.com/open-mmlab/mmpose/pull/980)) @jin-s13
+- Support TorchServe ([\#979](https://github.com/open-mmlab/mmpose/pull/979)) @ly015
+
+**Bug Fixes**
+
+- Fix some deprecated or risky settings in configs ([\#963](https://github.com/open-mmlab/mmpose/pull/963), [\#976](https://github.com/open-mmlab/mmpose/pull/976), [\#992](https://github.com/open-mmlab/mmpose/pull/992)) @jin-s13, @wusize
+- Fix issues of default arguments of training and testing scripts ([\#970](https://github.com/open-mmlab/mmpose/pull/970), [\#985](https://github.com/open-mmlab/mmpose/pull/985)) @liqikai9, @wusize
+- Fix heatmap and tag size mismatch in bottom-up with UDP ([\#994](https://github.com/open-mmlab/mmpose/pull/994)) @wusize
+- Fix python3.9 installation in CI ([\#983](https://github.com/open-mmlab/mmpose/pull/983)) @ly015
+- Fix model zoo document integrity issue ([\#990](https://github.com/open-mmlab/mmpose/pull/990)) @jin-s13
+
+**Improvements**
+
+- Support non-square input shape for bottom-up ([\#991](https://github.com/open-mmlab/mmpose/pull/991)) @wusize
+- Add image and video resources for demo ([\#971](https://github.com/open-mmlab/mmpose/pull/971)) @liqikai9
+- Use CUDA docker images to accelerate CI ([\#973](https://github.com/open-mmlab/mmpose/pull/973)) @ly015
+- Add codespell hook and fix detected typos ([\#977](https://github.com/open-mmlab/mmpose/pull/977)) @ly015
+
 ## v0.19.0 (08/10/2021)
 
 **Highlights**

@@ -41,7 +41,7 @@ def init_pose_model(config, checkpoint=None, device='cuda:0'):
     model = build_posenet(config.model)
     if checkpoint is not None:
         # load model checkpoint
-        load_checkpoint(model, checkpoint, map_location=device)
+        load_checkpoint(model, checkpoint, map_location='cpu')
     # save the config in the model for convenience
     model.cfg = config
     model.to(device)
@@ -530,7 +530,7 @@ def inference_bottom_up_pose_model(model,
         'img_or_path': img_or_path,
         'dataset': dataset_name,
         'ann_info': {
-            'image_size': cfg.data_cfg['image_size'],
+            'image_size': np.array(cfg.data_cfg['image_size']),
             'num_joints': cfg.data_cfg['num_joints'],
             'flip_index': flip_index,
         }
