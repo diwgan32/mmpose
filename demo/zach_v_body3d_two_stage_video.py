@@ -13,7 +13,7 @@ import time
 
 from mmpose.apis import (extract_pose_sequence, get_track_id,
                          inference_pose_lifter_model,
-                         inference_top_down_pose_model, init_pose_model,
+                         inference_top_down_pose_model, init_pose_model, init_pose_model_trt,
                          process_mmdet_results, vis_3d_pose_result)
 
 try:
@@ -56,91 +56,6 @@ def covert_keypoint_definition(keypoints, pose_det_dataset, pose_lift_dataset):
 
 
 def process_video(args):
-    
-#     parser = ArgumentParser()
-#     parser.add_argument('det_config', help='Config file for detection')
-#     parser.add_argument('det_checkpoint', help='Checkpoint file for detection')
-#     parser.add_argument(
-#         'pose_detector_config',
-#         type=str,
-#         default=None,
-#         help='Config file for the 1st stage 2D pose detector')
-#     parser.add_argument(
-#         'pose_detector_checkpoint',
-#         type=str,
-#         default=None,
-#         help='Checkpoint file for the 1st stage 2D pose detector')
-#     parser.add_argument(
-#         'pose_lifter_config',
-#         help='Config file for the 2nd stage pose lifter model')
-#     parser.add_argument(
-#         'pose_lifter_checkpoint',
-#         help='Checkpoint file for the 2nd stage pose lifter model')
-#     parser.add_argument(
-#         '--video-path', type=str, default='', help='Video path')
-#     parser.add_argument(
-#         '--rebase-keypoint-height',
-#         action='store_true',
-#         help='Rebase the predicted 3D pose so its lowest keypoint has a '
-#         'height of 0 (landing on the ground). This is useful for '
-#         'visualization when the model do not predict the global position '
-#         'of the 3D pose.')
-#     parser.add_argument(
-#         '--norm-pose-2d',
-#         action='store_true',
-#         help='Scale the bbox (along with the 2D pose) to the average bbox '
-#         'scale of the dataset, and move the bbox (along with the 2D pose) to '
-#         'the average bbox center of the dataset. This is useful when bbox '
-#         'is small, especially in multi-person scenarios.')
-#     parser.add_argument(
-#         '--num-instances',
-#         type=int,
-#         default=-1,
-#         help='The number of 3D poses to be visualized in every frame. If '
-#         'less than 0, it will be set to the number of pose results in the '
-#         'first frame.')
-#     parser.add_argument(
-#         '--show',
-#         action='store_true',
-#         default=False,
-#         help='whether to show visualizations.')
-#     parser.add_argument(
-#         '--out-video-root',
-#         type=str,
-#         default=None,
-#         help='Root of the output video file. '
-#         'Default not saving the visualization video.')
-#     parser.add_argument(
-#         '--device', default='cuda:0', help='Device for inference')
-#     parser.add_argument(
-#         '--det-cat-id',
-#         type=int,
-#         default=1,
-#         help='Category id for bounding box detection model')
-#     parser.add_argument(
-#         '--bbox-thr',
-#         type=float,
-#         default=0.9,
-#         help='Bounding box score threshold')
-#     parser.add_argument('--kpt-thr', type=float, default=0.3)
-#     parser.add_argument(
-#         '--use-oks-tracking', action='store_true', help='Using OKS tracking')
-#     parser.add_argument(
-#         '--tracking-thr', type=float, default=0.3, help='Tracking threshold')
-#     parser.add_argument(
-#         '--euro',
-#         action='store_true',
-#         help='Using One_Euro_Filter for smoothing')
-#     parser.add_argument(
-#         '--radius',
-#         type=int,
-#         default=8,
-#         help='Keypoint radius for visualization')
-#     parser.add_argument(
-#         '--thickness',
-#         type=int,
-#         default=2,
-#         help='Link thickness for visualization')
 
     assert has_mmdet, 'Please install mmdet to run the demo.'
 
@@ -160,9 +75,9 @@ def process_video(args):
     
     print("person_det_model->", person_det_model)
 
-    pose_det_model = init_pose_model(
-        args.pose_detector_config,
-        args.pose_detector_checkpoint,
+    pose_det_model_trt = init_pose_model_trt(
+        "hrnet.onnx",
+        "sample.trt",
         device=args.device.lower())
     print("Initialized Model")
     assert pose_det_model.cfg.model.type == 'TopDown', 'Only "TopDown"' \
@@ -190,14 +105,15 @@ def process_video(args):
             # make person results for single image
             cv2.imwrite("test.jpg", frame)
             pose_det_results, _ = inference_top_down_pose_model(
-                pose_det_model,
+                pose_det_model_trt,
                 frame,
                 person_det_results,
                 bbox_thr=args.bbox_thr,
                 format='xyxy',
                 dataset=pose_det_dataset,
                 return_heatmap=False,
-                outputs=None)
+                outputs=None,
+                trt=True)
 
             # get track id for each person instance
             pose_det_results, next_id = get_track_id(

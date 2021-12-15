@@ -17,9 +17,37 @@ from mmpose.datasets.dataset_info import DatasetInfo
 from mmpose.datasets.pipelines import Compose
 from mmpose.models import build_posenet
 from mmpose.utils.hooks import OutputHook
+import tensorrt as trt
+from mmcv.tensorrt import (TRTWrapper, onnx2trt, save_trt_engine,
+                                   is_tensorrt_plugin_loaded)
+from mmpose.core.evaluation.top_down_eval import keypoints_from_heatmaps 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
+
+def init_pose_model_trt(onnx_file, engine_file, config, device='cuda:0'):
+    """Initialize a pose model from trt.
+
+    Args:
+        config (str or :obj:`mmcv.Config`): Config file path or the config
+            object.
+        checkpoint (str, optional): Checkpoint path. If left as None, the model
+            will not load any weights.
+
+    Returns:
+        nn.Module: The constructed detector.
+    """
+    if isinstance(config, str):
+        config = mmcv.Config.fromfile(config)
+    elif not isinstance(config, mmcv.Config):
+        raise TypeError('config must be a filename or Config object, '
+                        f'but got {type(config)}')
+    config.model.pretrained = None
+    onnx_model = onnx.load(onnx_file)
+    trt_model = TRTWrapper(engine_file, ['input.1'], ['2947'])
+    # save the config in the model for convenience
+    trt_model.cfg = config
+    return trt_model
 
 def init_pose_model(config, checkpoint=None, device='cuda:0'):
     """Initialize a pose model from config file.
@@ -155,7 +183,8 @@ def _inference_single_pose_model(model,
                                  bboxes,
                                  dataset='TopDownCocoDataset',
                                  dataset_info=None,
-                                 return_heatmap=False):
+                                 return_heatmap=False,
+                                 trt=False):
     """Inference human bounding boxes.
 
     num_bboxes: N
@@ -171,6 +200,7 @@ def _inference_single_pose_model(model,
         dataset_info (DatasetInfo): A class containing all dataset info.
         outputs (list[str] | tuple[str]): Names of layers whose output is
             to be returned, default: None
+        trt (bool): Whether or not to use tensorrt
 
     Returns:
         ndarray[NxKx3]: Predicted pose x, y, score.
@@ -178,7 +208,10 @@ def _inference_single_pose_model(model,
     """
 
     cfg = model.cfg
-    device = next(model.parameters()).device
+    if (not trt):
+        device = next(model.parameters()).device
+    else:
+        device = "cuda:0"
 
     # build the data pipeline
     channel_order = cfg.test_pipeline[0].get('channel_order', 'rgb')
@@ -314,27 +347,41 @@ def _inference_single_pose_model(model,
         batch_data.append(data)
 
     batch_data = collate(batch_data, samples_per_gpu=1)
-
-    if next(model.parameters()).is_cuda:
-        # scatter not work so just move image to cuda device
-        batch_data['img'] = batch_data['img'].to(device)
+    if (not trt):
+        if next(model.parameters()).is_cuda:
+            # scatter not work so just move image to cuda device
+            batch_data['img'] = batch_data['img'].to(device)
     # get all img_metas of each bounding box
     batch_data['img_metas'] = [
         img_metas[0] for img_metas in batch_data['img_metas'].data
     ]
 
     # forward the model
-    print(f"Shapes: {batch_data['img'][0].shape}, {batch_data['img_metas']}")
     t1 = time.time()
 #     with open('img.p', 'wb') as outfile:
 #         pickle.dump(batch_data, outfile)
 #     input("?")
     with torch.no_grad():
-        result = model(
-            img=batch_data['img'],
-            img_metas=batch_data['img_metas'],
-            return_loss=False,
-            return_heatmap=return_heatmap)
+        if (trt):
+            trt_result = model({
+                'input.1': batch_data['img']
+            })
+            heatmap = trt_result['2947']
+            output_np = output.cpu().detach().numpy()
+            keypoints = keypoints_from_heatmaps(
+                output_np,
+                batch_data["img_metas"][0]["center"][None, :],
+                batch_data["img_metas"][0]["scale"][None, :]
+            )
+            result = {}
+            result["preds"] = keypoints
+            result["output_heatmap"] = heatmap
+        else:
+            result = model(
+                img=batch_data['img'],
+                img_metas=batch_data['img_metas'],
+                return_loss=False,
+                return_heatmap=return_heatmap)
     print(f"Model time: {time.time() - t1}")
         
     return result['preds'], result['output_heatmap']
@@ -348,7 +395,8 @@ def inference_top_down_pose_model(model,
                                   dataset='TopDownCocoDataset',
                                   dataset_info=None,
                                   return_heatmap=False,
-                                  outputs=None):
+                                  outputs=None,
+                                  trt=False):
     """Inference a single image with a list of person bounding boxes.
 
     num_people: P
@@ -378,7 +426,7 @@ def inference_top_down_pose_model(model,
         return_heatmap (bool) : Flag to return heatmap, default: False
         outputs (list(str) | tuple(str)) : Names of layers whose outputs
             need to be returned, default: None
-
+        trt (bool): Whether or not to use the trt version of the model
     Returns:
         list[dict]: The bbox & pose info,
             Each item in the list is a dictionary,
@@ -447,7 +495,8 @@ def inference_top_down_pose_model(model,
             bboxes_xywh,
             dataset=dataset,
             dataset_info=dataset_info,
-            return_heatmap=return_heatmap)
+            return_heatmap=return_heatmap,
+            trt=trt)
         if return_heatmap:
             h.layer_outputs['heatmap'] = heatmap
 
