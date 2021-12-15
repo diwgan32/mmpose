@@ -323,6 +323,7 @@ def _inference_single_pose_model(model,
     ]
 
     # forward the model
+    print(f"Shapes: {batch_data["img"].shape}, {batch_data=["img_metas"].shape}")
     t1 = time.time()
     with torch.no_grad():
         result = model(
@@ -330,6 +331,7 @@ def _inference_single_pose_model(model,
             img_metas=batch_data['img_metas'],
             return_loss=False,
             return_heatmap=return_heatmap)
+    print(f"Model time: {time.time() - t1}")
         
     return result['preds'], result['output_heatmap']
 
