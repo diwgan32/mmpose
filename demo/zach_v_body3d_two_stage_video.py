@@ -176,45 +176,42 @@ def process_video(args):
     idx = 0
     if (args.detections_2d == ""):
         print(f"Video len: {len(video)}")
-        while True: 
+        for frame in video:
             t1 = time.time()
-            frames = video[idx:idx+4]
-            idx += len(frames)
-            mmdet_results = inference_detector(person_det_model, frames)
-            print(f"MDET Time: {time.time() - t1}, len: {len(frames)}", flush=True)
-            for i in range(len(frames)):
-                # test a single image, the resulting box is (x1, y1, x2, y2)
-                # keep the person class bounding boxes.
-                pose_det_results_last = pose_det_results
-                person_det_results = process_mmdet_results(mmdet_results[i],
-                                                           args.det_cat_id)
-                # make person results for single image
-                pose_det_results, _ = inference_top_down_pose_model(
-                    pose_det_model,
-                    frames[i],
-                    person_det_results,
-                    bbox_thr=args.bbox_thr,
-                    format='xyxy',
-                    dataset=pose_det_dataset,
-                    return_heatmap=False,
-                    outputs=None)
-                # get track id for each person instance
-                pose_det_results, next_id = get_track_id(
-                    pose_det_results,
-                    pose_det_results_last,
-                    next_id,
-                    use_oks=args.use_oks_tracking,
-                    tracking_thr=args.tracking_thr,
-                    use_one_euro=args.euro,
-                    fps=video.fps)
-                if (idx % 100 == 0): print(f"Idx: {idx}")
-                pose_det_results_list.append(copy.deepcopy(pose_det_results))
-                
-            if (idx >= len(video) - 1):
-                break
-            print(f"Time: {time.time() - t1}", flush=True)
-            print("------", flush=True)
-                
+            pose_det_results_last = pose_det_results
+            
+            # test a single image, the resulting box is (x1, y1, x2, y2)
+            mmdet_results = inference_detector(person_det_model, frame)
+
+            # keep the person class bounding boxes.
+            person_det_results = process_mmdet_results(mmdet_results,
+                                                       args.det_cat_id)
+            t1 = time.time()
+            # make person results for single image
+            cv2.imwrite("test.jpg", frame)
+            pose_det_results, _ = inference_top_down_pose_model(
+                pose_det_model,
+                frame,
+                person_det_results,
+                bbox_thr=args.bbox_thr,
+                format='xyxy',
+                dataset=pose_det_dataset,
+                return_heatmap=False,
+                outputs=None)
+
+            # get track id for each person instance
+            pose_det_results, next_id = get_track_id(
+                pose_det_results,
+                pose_det_results_last,
+                next_id,
+                use_oks=args.use_oks_tracking,
+                tracking_thr=args.tracking_thr,
+                use_one_euro=args.euro,
+                fps=video.fps)
+            idx += 1
+            print(f"Time: {time.time() - t1}")
+            if (idx % 100 == 0): print(f"Idx: {idx}")
+            pose_det_results_list.append(copy.deepcopy(pose_det_results))
         # Pickle keypoints
         with open(f'work_dirs/tumeke_testing/pickle_files/{args.video_name}.p', 'wb') as outfile:
             pickle.dump(pose_det_results_list, outfile)
@@ -305,7 +302,10 @@ def process_video(args):
             res['title'] = f'Prediction ({instance_id})'
             # only visualize the target frame
             res['keypoints'] = det_res['keypoints']
-            res['bbox'] = det_res['bbox']
+            if ("bbox" in det_res):
+                res['bbox'] = det_res['bbox']
+            else:
+                res['bboxes'] = det_res['bboxes']
             res['track_id'] = instance_id
             pose_lift_results_vis.append(res)
 

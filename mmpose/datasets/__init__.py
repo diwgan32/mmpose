@@ -39,11 +39,7 @@ __all__ = [
     'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
-<<<<<<< HEAD
     'build_dataloader', 'build_dataset', 'Compose', 'DistributedSampler',
-    'DATASETS', 'PIPELINES', 'DatasetInfo', "Body3DPanopticDataset"
-=======
-    'TopDownPoseTrack18VideoDataset', 'build_dataloader', 'build_dataset',
-    'Compose', 'DistributedSampler', 'DATASETS', 'PIPELINES', 'DatasetInfo'
->>>>>>> upstream/master
+    'PIPELINES', 'DatasetInfo', "Body3DPanopticDataset"
+    'TopDownPoseTrack18VideoDataset', 'DATASETS', 'PIPELINES'
 ]

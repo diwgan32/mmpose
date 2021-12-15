@@ -10,6 +10,7 @@ import torch
 from mmcv.parallel import collate, scatter
 from mmcv.runner import load_checkpoint
 from PIL import Image
+import pickle
 
 from mmpose.core.post_processing import oks_nms
 from mmpose.datasets.dataset_info import DatasetInfo
@@ -323,8 +324,11 @@ def _inference_single_pose_model(model,
     ]
 
     # forward the model
-    print(f"Shapes: {batch_data["img"].shape}, {batch_data=["img_metas"].shape}")
+    print(f"Shapes: {batch_data['img'][0].shape}, {batch_data['img_metas']}")
     t1 = time.time()
+#     with open('img.p', 'wb') as outfile:
+#         pickle.dump(batch_data, outfile)
+#     input("?")
     with torch.no_grad():
         result = model(
             img=batch_data['img'],
