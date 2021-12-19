@@ -9,6 +9,10 @@ import cv2
 from mmpose.datasets.pipelines import Compose
 from .inference import LoadImage, _box2cs, _xywh2xyxy, _xyxy2xywh
 from mmpose.core.visualization import image
+import pickle 
+from mmpose.core import imshow_bboxes, imshow_keypoints, imshow_keypoints_3d
+import mmcv
+from mmcv.utils.misc import deprecated_api_warning
 
 def extract_pose_sequence(pose_results, frame_idx, causal, seq_len, step=1):
     """Extract the target frame from 2D pose results, and pad the sequence to a
@@ -239,7 +243,8 @@ def inference_pose_lifter_model(model,
                                 with_track_id=True,
                                 image_size=None,
                                 norm_pose_2d=False,
-                                output_num=0):
+                                output_num=0,
+                                trt=True):
     """Inference 3D pose from 2D pose sequences using a pose lifter model.
 
     Args:
@@ -292,8 +297,10 @@ def inference_pose_lifter_model(model,
             bbox_scale = 400
         else:
             raise NotImplementedError()
-
-    target_idx = -1 if model.causal else len(pose_results_2d) // 2
+    if trt:
+        target_idx = len(pose_results_2d) // 2
+    else:
+        target_idx = -1 if model.causal else len(pose_results_2d) // 2
     pose_lifter_inputs = _gather_pose_lifter_inputs(pose_results_2d,
                                                     bbox_center, bbox_scale,
                                                     norm_pose_2d)
@@ -393,19 +400,35 @@ def inference_pose_lifter_model(model,
         
             
     batch_data = collate(batch_data, samples_per_gpu=len(batch_data))
-    if next(model.parameters()).is_cuda:
-        device = next(model.parameters()).device
+    if trt:
+        device = "cuda:0"
         batch_data = scatter(batch_data, target_gpus=[device.index])[0]
     else:
-        batch_data = scatter(batch_data, target_gpus=[-1])[0]
+        if next(model.parameters()).is_cuda:
+            device = next(model.parameters()).device
+            batch_data = scatter(batch_data, target_gpus=[device.index])[0]
+        else:
+            batch_data = scatter(batch_data, target_gpus=[-1])[0]
+#     with open('3d_img.p', 'wb') as outfile:
+#         pickle.dump(batch_data, outfile)
+#     input("?")
+    if (trt):
+        #print(batch_data["input"].shape)
+        poses_3d = []
+        for i in range(batch_data["input"].shape[0]):
+            with torch.no_grad():
+                trt_outputs = model({'input.1': batch_data["input"][i][None, :]})
+            output = trt_outputs['116']
+            poses_3d.append(output.cpu().detach().numpy()[0])
+        poses_3d = np.array(poses_3d)
+    else:
+        with torch.no_grad():
+            result = model(
+                input=batch_data['input'],
+                metas=batch_data['metas'],
+                return_loss=False)
 
-    with torch.no_grad():
-        result = model(
-            input=batch_data['input'],
-            metas=batch_data['metas'],
-            return_loss=False)
-
-    poses_3d = result['preds']
+        poses_3d = result['preds']
     if poses_3d.shape[-1] != 4:
         assert poses_3d.shape[-1] == 3
         dummy_score = np.ones(
@@ -419,7 +442,112 @@ def inference_pose_lifter_model(model,
 
     return pose_results
 
+def show_result(result,
+                img=None,
+                skeleton=None,
+                pose_kpt_color=None,
+                pose_link_color=None,
+                radius=8,
+                thickness=2,
+                vis_height=400,
+                num_instances=-1,
+                win_name='',
+                show=False,
+                wait_time=0,
+                out_file=None):
+    """Visualize 3D pose estimation results.
 
+    Args:
+        result (list[dict]): The pose estimation results containing:
+            - "keypoints_3d" ([K,4]): 3D keypoints
+            - "keypoints" ([K,3] or [T,K,3]): Optional for visualizing
+                2D inputs. If a sequence is given, only the last frame
+                will be used for visualization
+            - "bbox" ([4,] or [T,4]): Optional for visualizing 2D inputs
+            - "title" (str): title for the subplot
+        img (str or Tensor): Optional. The image to visualize 2D inputs on.
+        skeleton (list of [idx_i,idx_j]): Skeleton described by a list of
+            links, each is a pair of joint indices.
+        pose_kpt_color (np.array[Nx3]`): Color of N keypoints.
+            If None, do not draw keypoints.
+        pose_link_color (np.array[Mx3]): Color of M links.
+            If None, do not draw links.
+        radius (int): Radius of circles.
+        thickness (int): Thickness of lines.
+        vis_height (int): The image height of the visualization. The width
+            will be N*vis_height depending on the number of visualized
+            items.
+        win_name (str): The window name.
+        wait_time (int): Value of waitKey param.
+            Default: 0.
+        out_file (str or None): The filename to write the image.
+            Default: None.
+
+    Returns:
+        Tensor: Visualized img, only if not `show` or `out_file`.
+    """
+    if num_instances < 0:
+        assert len(result) > 0
+    result = sorted(result, key=lambda x: x.get('track_id', 1e4))
+
+    # draw image and input 2d poses
+    if img is not None:
+        img = mmcv.imread(img)
+
+        bbox_result = []
+        pose_input_2d = []
+        for res in result:
+            if 'bbox' in res:
+                bbox = np.array(res['bbox'])
+                if bbox.ndim != 1:
+                    assert bbox.ndim == 2
+                    bbox = bbox[-1]  # Get bbox from the last frame
+                bbox_result.append(bbox)
+            if 'keypoints' in res:
+                kpts = np.array(res['keypoints'])
+                if kpts.ndim != 2:
+                    assert kpts.ndim == 3
+                    kpts = kpts[-1]  # Get 2D keypoints from the last frame
+                pose_input_2d.append(kpts)
+
+        if len(bbox_result) > 0:
+            bboxes = np.vstack(bbox_result)
+            imshow_bboxes(
+                img,
+                bboxes,
+                colors='green',
+                thickness=thickness,
+                show=False)
+        if len(pose_input_2d) > 0:
+            imshow_keypoints(
+                img,
+                pose_input_2d,
+                skeleton,
+                kpt_score_thr=0.3,
+                pose_kpt_color=pose_kpt_color,
+                pose_link_color=pose_link_color,
+                radius=radius,
+                thickness=thickness)
+        img = mmcv.imrescale(img, scale=vis_height / img.shape[0])
+
+    img_vis = imshow_keypoints_3d(
+        result,
+        img,
+        skeleton,
+        pose_kpt_color,
+        pose_link_color,
+        vis_height,
+        num_instances=num_instances)
+
+    if show:
+        mmcv.visualization.imshow(img_vis, win_name, wait_time)
+
+    if out_file is not None:
+        mmcv.imwrite(img_vis, out_file)
+
+    return img_vis
+
+    
 def vis_3d_pose_result(model,
                        result,
                        img=None,
@@ -512,11 +640,8 @@ def vis_3d_pose_result(model,
         else:
             raise NotImplementedError
 
-    if hasattr(model, 'module'):
-        model = model.module
-      
     try:
-        img = model.show_result(
+        img = show_result(
             result,
             img,
             skeleton,
@@ -528,7 +653,7 @@ def vis_3d_pose_result(model,
             show=show,
             out_file=out_file)
     except:
-        print(traceback.format_exc, flush=True)
+        print(traceback.format_exc(), flush=True)
         return img
     
     return img

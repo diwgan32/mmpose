@@ -15,6 +15,7 @@ from mmpose.apis import (extract_pose_sequence, get_track_id,
                          inference_pose_lifter_model,
                          inference_top_down_pose_model, init_pose_model, init_pose_model_trt,
                          process_mmdet_results, vis_3d_pose_result)
+from mmdet2trt.apis import create_wrap_detector
 
 try:
     from mmdet.apis import inference_detector, init_detector
@@ -70,21 +71,24 @@ def process_video(args):
     # First stage: 2D pose detection
     print('Stage #1: 2D pose detection.')
 
-    person_det_model = init_detector(
-        args.det_config, args.det_checkpoint, device=args.device.lower())
-    
-    print("person_det_model->", person_det_model)
+    person_det_model = create_wrap_detector(
+        "/home/ubuntu/PoseEstimation/mmpose/faster_rcnn.trt", 
+        "/home/ubuntu/PoseEstimation/mmpose/demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py",
+        "cuda:0"
+    )
 
     pose_det_model_trt = init_pose_model_trt(
         "hrnet.onnx",
         "sample.trt",
+        args.pose_detector_config,
+        "2947",
         device=args.device.lower())
     print("Initialized Model")
-    assert pose_det_model.cfg.model.type == 'TopDown', 'Only "TopDown"' \
+    assert pose_det_model_trt.cfg.model.type == 'TopDown', 'Only "TopDown"' \
         'model is supported for the 1st stage (2D pose detection)'
 
 #     print("pose_det_dataset->", pose_det_model.cfg.data['test']['type'])
-    pose_det_dataset = pose_det_model.cfg.data['test']['type']
+    pose_det_dataset = pose_det_model_trt.cfg.data['test']['type']
     pose_det_results_list = []
     next_id = 0
     pose_det_results = []
@@ -101,9 +105,8 @@ def process_video(args):
             # keep the person class bounding boxes.
             person_det_results = process_mmdet_results(mmdet_results,
                                                        args.det_cat_id)
-            t1 = time.time()
             # make person results for single image
-            cv2.imwrite("test.jpg", frame)
+            # cv2.imwrite("test.jpg", frame)
             pose_det_results, _ = inference_top_down_pose_model(
                 pose_det_model_trt,
                 frame,
@@ -125,7 +128,7 @@ def process_video(args):
                 use_one_euro=args.euro,
                 fps=video.fps)
             idx += 1
-            print(f"Time: {time.time() - t1}")
+            #print(f"Time: {time.time() - t1}")
             if (idx % 100 == 0): print(f"Idx: {idx}")
             pose_det_results_list.append(copy.deepcopy(pose_det_results))
         # Pickle keypoints
@@ -138,9 +141,11 @@ def process_video(args):
     # Second stage: Pose lifting
     print('Stage 2: 2D-to-3D pose lifting.')
 
-    pose_lift_model = init_pose_model(
+    pose_lift_model = init_pose_model_trt(
+        "videopose.onnx",
+        "videopose.trt",
         args.pose_lifter_config,
-        args.pose_lifter_checkpoint,
+        "116",
         device=args.device.lower())
 
     assert pose_lift_model.cfg.model.type == 'PoseLifter', \
@@ -187,7 +192,6 @@ def process_video(args):
             causal=data_cfg.causal,
             seq_len=data_cfg.seq_len,
             step=3)
-        print("Len", len(pose_results_2d))
         # 2D-to-3D pose lifting
         pose_lift_results = inference_pose_lifter_model(
             pose_lift_model,
@@ -197,7 +201,8 @@ def process_video(args):
             image_size=video.resolution,
             norm_pose_2d=args.norm_pose_2d,
             dataset_info=pose_lift_model.cfg.dataset_info,
-            output_num=i)
+            output_num=i,
+            trt=True)
         # Pose processing
         pose_lift_results_vis = []
         for idx, res in enumerate(pose_lift_results):
@@ -226,27 +231,27 @@ def process_video(args):
             pose_lift_results_vis.append(res)
 
         # Visualization
-        if num_instances < 0:
-            num_instances = len(pose_lift_results_vis)
-        img_vis = vis_3d_pose_result(
-            pose_lift_model,
-            result=pose_lift_results_vis,
-            img=video[i],
-            out_file=None,
-            radius=args.radius,
-            thickness=args.thickness,
-            num_instances=num_instances)
+#         if num_instances < 0:
+#             num_instances = len(pose_lift_results_vis)
+#         img_vis = vis_3d_pose_result(
+#             pose_lift_model,
+#             result=pose_lift_results_vis,
+#             img=video[i],
+#             out_file=None,
+#             radius=args.radius,
+#             thickness=args.thickness,
+#             num_instances=num_instances)
 
-        if save_out_video:
-            if writer is None:
-                writer = cv2.VideoWriter(
-                    osp.join(args.out_video_root,
-                             f'tumeke_testing/vis_{osp.basename(args.file_path)}'), fourcc,
-                    fps, (img_vis.shape[1], img_vis.shape[0]))
-            writer.write(img_vis)
+#         if save_out_video:
+#             if writer is None:
+#                 writer = cv2.VideoWriter(
+#                     osp.join(args.out_video_root,
+#                              f'tumeke_testing/vis_{osp.basename(args.file_path)}'), fourcc,
+#                     fps, (img_vis.shape[1], img_vis.shape[0]))
+#             writer.write(img_vis)
 
-    if save_out_video:
-        writer.release()
+#     if save_out_video:
+#         writer.release()
     
     print(f'Video "{args.video_name}" processed.')
 

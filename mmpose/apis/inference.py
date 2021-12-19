@@ -11,6 +11,7 @@ from mmcv.parallel import collate, scatter
 from mmcv.runner import load_checkpoint
 from PIL import Image
 import pickle
+import onnx
 
 from mmpose.core.post_processing import oks_nms
 from mmpose.datasets.dataset_info import DatasetInfo
@@ -25,7 +26,7 @@ from mmpose.core.evaluation.top_down_eval import keypoints_from_heatmaps
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 
-def init_pose_model_trt(onnx_file, engine_file, config, device='cuda:0'):
+def init_pose_model_trt(onnx_file, engine_file, config, output_name, device='cuda:0'):
     """Initialize a pose model from trt.
 
     Args:
@@ -44,7 +45,7 @@ def init_pose_model_trt(onnx_file, engine_file, config, device='cuda:0'):
                         f'but got {type(config)}')
     config.model.pretrained = None
     onnx_model = onnx.load(onnx_file)
-    trt_model = TRTWrapper(engine_file, ['input.1'], ['2947'])
+    trt_model = TRTWrapper(engine_file, ['input.1'], [output_name])
     # save the config in the model for convenience
     trt_model.cfg = config
     return trt_model
@@ -347,10 +348,7 @@ def _inference_single_pose_model(model,
         batch_data.append(data)
 
     batch_data = collate(batch_data, samples_per_gpu=1)
-    if (not trt):
-        if next(model.parameters()).is_cuda:
-            # scatter not work so just move image to cuda device
-            batch_data['img'] = batch_data['img'].to(device)
+    batch_data['img'] = batch_data['img'].to(device)
     # get all img_metas of each bounding box
     batch_data['img_metas'] = [
         img_metas[0] for img_metas in batch_data['img_metas'].data
@@ -363,26 +361,32 @@ def _inference_single_pose_model(model,
 #     input("?")
     with torch.no_grad():
         if (trt):
-            trt_result = model({
-                'input.1': batch_data['img']
-            })
-            heatmap = trt_result['2947']
-            output_np = output.cpu().detach().numpy()
-            keypoints = keypoints_from_heatmaps(
-                output_np,
-                batch_data["img_metas"][0]["center"][None, :],
-                batch_data["img_metas"][0]["scale"][None, :]
-            )
+            keypoints = []
+            for n in range(batch_data["img"].shape[0]):
+                trt_result = model({
+                    'input.1': batch_data['img'][n][None, :]
+                })
+                heatmap = trt_result['2947']
+                heatmap_np = heatmap.cpu().detach().numpy()
+                
+                keypoints.append(np.hstack((
+                    keypoints_from_heatmaps(
+                        heatmap_np,
+                        batch_data["img_metas"][n]["center"][None, :],
+                        batch_data["img_metas"][n]["scale"][None, :]
+                    )[0][0], 
+                    np.ones((17, 1))
+                )))
             result = {}
-            result["preds"] = keypoints
-            result["output_heatmap"] = heatmap
+            result["preds"] = np.array(keypoints)
+            result["output_heatmap"] = heatmap_np
         else:
             result = model(
                 img=batch_data['img'],
                 img_metas=batch_data['img_metas'],
                 return_loss=False,
                 return_heatmap=return_heatmap)
-    print(f"Model time: {time.time() - t1}")
+    #print(f"Model time: {time.time() - t1}")
         
     return result['preds'], result['output_heatmap']
 
