@@ -72,14 +72,14 @@ def process_video(args):
     print('Stage #1: 2D pose detection.')
 
     person_det_model = create_wrap_detector(
-        "/home/ubuntu/PoseEstimation/mmpose/faster_rcnn.trt", 
-        "/home/ubuntu/PoseEstimation/mmpose/demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py",
-        "cuda:0"
+        "/home/fsuser/PoseEstimation/mmpose/faster_rcnn.trt", 
+        "/home/fsuser/PoseEstimation/mmpose/demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py",
+        "cuda:1"
     )
 
     pose_det_model_trt = init_pose_model_trt(
         "hrnet.onnx",
-        "sample.trt",
+        "hrnet.trt",
         args.pose_detector_config,
         "2947",
         device=args.device.lower())
@@ -128,7 +128,7 @@ def process_video(args):
                 use_one_euro=args.euro,
                 fps=video.fps)
             idx += 1
-            #print(f"Time: {time.time() - t1}")
+            print(f"Time: {time.time() - t1}")
             if (idx % 100 == 0): print(f"Idx: {idx}")
             pose_det_results_list.append(copy.deepcopy(pose_det_results))
         # Pickle keypoints

@@ -401,7 +401,7 @@ def inference_pose_lifter_model(model,
             
     batch_data = collate(batch_data, samples_per_gpu=len(batch_data))
     if trt:
-        device = "cuda:0"
+        device = "cuda:1"
         batch_data = scatter(batch_data, target_gpus=[device.index])[0]
     else:
         if next(model.parameters()).is_cuda:
