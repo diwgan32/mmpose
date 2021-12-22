@@ -3,6 +3,7 @@ import warnings
 from collections.abc import Sequence
 
 import mmcv
+import time
 import numpy as np
 from mmcv.parallel import DataContainer as DC
 from mmcv.utils import build_from_cfg
@@ -28,11 +29,12 @@ class ToTensor:
     """
 
     def __call__(self, results):
+        t1 = time.time()
         if isinstance(results['img'], (list, tuple)):
             results['img'] = [F.to_tensor(img) for img in results['img']]
         else:
             results['img'] = F.to_tensor(results['img'])
-
+        print(f"ToTensor: {time.time()-t1}", flush=True)
         return results
 
 
@@ -52,6 +54,7 @@ class NormalizeTensor:
         self.std = std
 
     def __call__(self, results):
+        t1 = time.time()
         if isinstance(results['img'], (list, tuple)):
             results['img'] = [
                 F.normalize(img, mean=self.mean, std=self.std)
@@ -60,7 +63,7 @@ class NormalizeTensor:
         else:
             results['img'] = F.normalize(
                 results['img'], mean=self.mean, std=self.std)
-
+        print(f"NormalizeTensor: {time.time() - t1}", flush=True)
         return results
 
 
@@ -145,6 +148,7 @@ class Collect:
             results (dict): The resulting dict to be modified and passed
               to the next transform in pipeline.
         """
+        t1 = time.time()
         if 'ann_info' in results:
             results.update(results['ann_info'])
 
@@ -169,7 +173,7 @@ class Collect:
         if 'bbox_id' in results:
             meta['bbox_id'] = results['bbox_id']
         data[self.meta_name] = DC(meta, cpu_only=True)
-
+        print(f"Collect: {time.time() - t1}", flush=True)
         return data
 
     def __repr__(self):

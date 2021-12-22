@@ -6,7 +6,7 @@ from mmpose.core.post_processing import (affine_transform, fliplr_joints,
                                          get_affine_transform, get_warp_matrix,
                                          warp_affine_joints)
 from mmpose.datasets.builder import PIPELINES
-
+import time
 
 @PIPELINES.register_module()
 class TopDownRandomFlip:
@@ -195,6 +195,7 @@ class TopDownAffine:
         self.use_udp = use_udp
 
     def __call__(self, results):
+        t1 = time.time()
         image_size = results['ann_info']['image_size']
 
         img = results['img']
@@ -244,7 +245,7 @@ class TopDownAffine:
         results['img'] = img
         results['joints_3d'] = joints_3d
         results['joints_3d_visible'] = joints_3d_visible
-
+        print(f"TopDownAffine: {time.time() - t1}", flush=True)
         return results
 
 

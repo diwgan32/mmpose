@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import mmcv
+import time
 
 from ..builder import PIPELINES
 
@@ -24,6 +25,7 @@ class LoadImageFromFile:
 
     def __call__(self, results):
         """Loading image(s) from file."""
+        t1 = time.time()
         image_file = results['image_file']
 
         if isinstance(image_file, (list, tuple)):
@@ -41,5 +43,5 @@ class LoadImageFromFile:
             if img is None:
                 raise ValueError(f'Fail to read {image_file}')
             results['img'] = img
-
+        print(f"LoadImage time: {time.time() - t1}", flush=True)
         return results

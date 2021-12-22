@@ -153,6 +153,7 @@ class LoadImage:
         self.channel_order = channel_order
 
     def __call__(self, results):
+        t1 = time.time()
         """Call function to load images into results.
 
         Args:
@@ -174,7 +175,7 @@ class LoadImage:
         else:
             raise TypeError('"img_or_path" must be a numpy array or a str or '
                             'a pathlib.Path object')
-
+        print(f"LoadImageLocal: {time.time() - t1}")
         results['img'] = img
         return results
 
@@ -314,7 +315,8 @@ def _inference_single_pose_model(model,
         else:
             raise NotImplementedError()
         dataset_name = dataset
-
+    #print(f"Model pipeline time 1: {time.time() - t1}", flush=True)
+    t2 = time.time()
     batch_data = []
     for bbox in bboxes:
         center, scale = _box2cs(cfg, bbox)
@@ -347,7 +349,7 @@ def _inference_single_pose_model(model,
         }
         data = test_pipeline(data)
         batch_data.append(data)
-    print(f"Model pipeline time: {time.time() - t1}", flush=True)
+    print(f"Model pipeline time: {time.time() - t2}", flush=True)
     batch_data = collate(batch_data, samples_per_gpu=1)
     batch_data['img'] = batch_data['img'].to(device)
     # get all img_metas of each bounding box
