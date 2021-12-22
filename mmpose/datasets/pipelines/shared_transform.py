@@ -8,15 +8,97 @@ import numpy as np
 from mmcv.parallel import DataContainer as DC
 from mmcv.utils import build_from_cfg
 from numpy import random
-from torchvision.transforms import functional as F
-
+from torch import Tensor
 from ..builder import PIPELINES
+from typing import List, Tuple, Any, Optional
+import torch
 
 try:
     import albumentations
 except ImportError:
     albumentations = None
 
+def to_tensor(pic):
+    """Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor.
+    This function does not support torchscript.
+    See :class:`~torchvision.transforms.ToTensor` for more details.
+    Args:
+        pic (PIL Image or numpy.ndarray): Image to be converted to tensor.
+    Returns:
+        Tensor: Converted image.
+    """
+    default_float_dtype = torch.get_default_dtype()
+
+    if isinstance(pic, np.ndarray):
+        # handle numpy array
+        if pic.ndim == 2:
+            pic = pic[:, :, None]
+
+        img = torch.from_numpy(pic.transpose((2, 0, 1))).contiguous()
+        # backward compatibility
+        if isinstance(img, torch.ByteTensor):
+            return img.to(dtype=default_float_dtype).div(255)
+        else:
+            return img
+
+    if accimage is not None and isinstance(pic, accimage.Image):
+        nppic = np.zeros([pic.channels, pic.height, pic.width], dtype=np.float32)
+        pic.copyto(nppic)
+        return torch.from_numpy(nppic).to(dtype=default_float_dtype)
+
+    # handle PIL Image
+    mode_to_nptype = {"I": np.int32, "I;16": np.int16, "F": np.float32}
+    img = torch.from_numpy(np.array(pic, mode_to_nptype.get(pic.mode, np.uint8), copy=True))
+
+    if pic.mode == "1":
+        img = 255 * img
+    img = img.view(pic.size[1], pic.size[0], len(pic.getbands()))
+    # put it from HWC to CHW format
+    img = img.permute((2, 0, 1)).contiguous()
+    if isinstance(img, torch.ByteTensor):
+        return img.to(dtype=default_float_dtype).div(255)
+    else:
+        return img
+
+def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool = False) -> Tensor:
+    """Normalize a float tensor image with mean and standard deviation.
+    This transform does not support PIL Image.
+    .. note::
+        This transform acts out of place by default, i.e., it does not mutates the input tensor.
+    See :class:`~torchvision.transforms.Normalize` for more details.
+    Args:
+        tensor (Tensor): Float tensor image of size (C, H, W) or (B, C, H, W) to be normalized.
+        mean (sequence): Sequence of means for each channel.
+        std (sequence): Sequence of standard deviations for each channel.
+        inplace(bool,optional): Bool to make this operation inplace.
+    Returns:
+        Tensor: Normalized Tensor image.
+    """
+    if not isinstance(tensor, torch.Tensor):
+        raise TypeError(f"Input tensor should be a torch tensor. Got {type(tensor)}.")
+
+    if not tensor.is_floating_point():
+        raise TypeError(f"Input tensor should be a float tensor. Got {tensor.dtype}.")
+
+    if tensor.ndim < 3:
+        raise ValueError(
+            f"Expected tensor to be a tensor image of size (..., C, H, W). Got tensor.size() = {tensor.size()}"
+        )
+
+    if not inplace:
+        tensor = tensor.clone()
+
+    dtype = tensor.dtype
+    mean = torch.as_tensor(mean, dtype=dtype, device=tensor.device)
+    std = torch.as_tensor(std, dtype=dtype, device=tensor.device)
+    if (std == 0).any():
+        raise ValueError(f"std evaluated to zero after conversion to {dtype}, leading to division by zero.")
+    if mean.ndim == 1:
+        mean = mean.view(-1, 1, 1)
+    if std.ndim == 1:
+        std = std.view(-1, 1, 1)
+    tensor.sub_(mean).div_(std)
+    return tensor
 
 @PIPELINES.register_module()
 class ToTensor:
@@ -31,9 +113,9 @@ class ToTensor:
     def __call__(self, results):
         t1 = time.time()
         if isinstance(results['img'], (list, tuple)):
-            results['img'] = [F.to_tensor(img) for img in results['img']]
+            results['img'] = [to_tensor(img) for img in results['img']]
         else:
-            results['img'] = F.to_tensor(results['img'])
+            results['img'] = to_tensor(results['img'])
         print(f"ToTensor: {time.time()-t1}", flush=True)
         return results
 
@@ -57,11 +139,11 @@ class NormalizeTensor:
         t1 = time.time()
         if isinstance(results['img'], (list, tuple)):
             results['img'] = [
-                F.normalize(img, mean=self.mean, std=self.std)
+                normalize(img, mean=self.mean, std=self.std)
                 for img in results['img']
             ]
         else:
-            results['img'] = F.normalize(
+            results['img'] = normalize(
                 results['img'], mean=self.mean, std=self.std)
         print(f"NormalizeTensor: {time.time() - t1}", flush=True)
         return results
