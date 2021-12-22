@@ -28,14 +28,17 @@ def to_tensor(pic):
         Tensor: Converted image.
     """
     default_float_dtype = torch.get_default_dtype()
-
+    from_numpy_time = 0
     if isinstance(pic, np.ndarray):
         # handle numpy array
         if pic.ndim == 2:
             pic = pic[:, :, None]
 
+        t1 = time.time()
         img = torch.from_numpy(pic.transpose((2, 0, 1))).contiguous()
+        from_numpy_time += (time.time() - t1)
         # backward compatibility
+        print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
         if isinstance(img, torch.ByteTensor):
             return img.to(dtype=default_float_dtype).div(255)
         else:
@@ -44,17 +47,25 @@ def to_tensor(pic):
     if accimage is not None and isinstance(pic, accimage.Image):
         nppic = np.zeros([pic.channels, pic.height, pic.width], dtype=np.float32)
         pic.copyto(nppic)
-        return torch.from_numpy(nppic).to(dtype=default_float_dtype)
+        t1 = time.time()
+        ret = torch.from_numpy(nppic).to(dtype=default_float_dtype)
+        from_numpy_time += (time.time() - t1)
+        print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
+        return ret
 
     # handle PIL Image
     mode_to_nptype = {"I": np.int32, "I;16": np.int16, "F": np.float32}
+    
+    t1 = time.time()
     img = torch.from_numpy(np.array(pic, mode_to_nptype.get(pic.mode, np.uint8), copy=True))
+    from_numpy_time += (time.time() - t1)
 
     if pic.mode == "1":
         img = 255 * img
     img = img.view(pic.size[1], pic.size[0], len(pic.getbands()))
     # put it from HWC to CHW format
     img = img.permute((2, 0, 1)).contiguous()
+    print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
     if isinstance(img, torch.ByteTensor):
         return img.to(dtype=default_float_dtype).div(255)
     else:
@@ -89,8 +100,10 @@ def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool
         tensor = tensor.clone()
 
     dtype = tensor.dtype
+    t1 = time.time()
     mean = torch.as_tensor(mean, dtype=dtype, device=tensor.device)
     std = torch.as_tensor(std, dtype=dtype, device=tensor.device)
+    print(f"NormalizeAsTensor: {time.time() - t1}", flush=True)
     if (std == 0).any():
         raise ValueError(f"std evaluated to zero after conversion to {dtype}, leading to division by zero.")
     if mean.ndim == 1:
@@ -116,7 +129,7 @@ class ToTensor:
             results['img'] = [to_tensor(img) for img in results['img']]
         else:
             results['img'] = to_tensor(results['img'])
-        print(f"ToTensor: {time.time()-t1}", flush=True)
+        #print(f"ToTensor: {time.time()-t1}", flush=True)
         return results
 
 
@@ -145,7 +158,7 @@ class NormalizeTensor:
         else:
             results['img'] = normalize(
                 results['img'], mean=self.mean, std=self.std)
-        print(f"NormalizeTensor: {time.time() - t1}", flush=True)
+        #print(f"NormalizeTensor: {time.time() - t1}", flush=True)
         return results
 
 
