@@ -26,7 +26,7 @@ from mmpose.core.evaluation.top_down_eval import keypoints_from_heatmaps
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 
-def init_pose_model_trt(onnx_file, engine_file, config, output_name, device='cuda:1'):
+def init_pose_model_trt(onnx_file, engine_file, config, output_name, device='cuda:0'):
     """Initialize a pose model from trt.
 
     Args:
@@ -212,7 +212,7 @@ def _inference_single_pose_model(model,
     if (not trt):
         device = next(model.parameters()).device
     else:
-        device = "cuda:1"
+        device = "cuda:0"
 
     # build the data pipeline
     channel_order = cfg.test_pipeline[0].get('channel_order', 'rgb')

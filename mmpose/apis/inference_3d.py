@@ -401,7 +401,7 @@ def inference_pose_lifter_model(model,
             
     batch_data = collate(batch_data, samples_per_gpu=len(batch_data))
     if trt:
-        device = "cuda:1"
+        device = "cuda:0"
         batch_data = scatter(batch_data, target_gpus=[device.index])[0]
     else:
         if next(model.parameters()).is_cuda:
@@ -409,11 +409,7 @@ def inference_pose_lifter_model(model,
             batch_data = scatter(batch_data, target_gpus=[device.index])[0]
         else:
             batch_data = scatter(batch_data, target_gpus=[-1])[0]
-#     with open('3d_img.p', 'wb') as outfile:
-#         pickle.dump(batch_data, outfile)
-#     input("?")
     if (trt):
-        #print(batch_data["input"].shape)
         poses_3d = []
         for i in range(batch_data["input"].shape[0]):
             with torch.no_grad():
