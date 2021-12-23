@@ -43,5 +43,5 @@ class LoadImageFromFile:
             if img is None:
                 raise ValueError(f'Fail to read {image_file}')
             results['img'] = img
-        print(f"LoadImage time: {time.time() - t1}", flush=True)
+        #print(f"LoadImage time: {time.time() - t1}", flush=True)
         return results

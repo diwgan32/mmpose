@@ -38,7 +38,7 @@ def to_tensor(pic):
         img = torch.from_numpy(pic.transpose((2, 0, 1))).contiguous()
         from_numpy_time += (time.time() - t1)
         # backward compatibility
-        print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
+        #print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
         if isinstance(img, torch.ByteTensor):
             return img.to(dtype=default_float_dtype).div(255)
         else:
@@ -50,7 +50,7 @@ def to_tensor(pic):
         t1 = time.time()
         ret = torch.from_numpy(nppic).to(dtype=default_float_dtype)
         from_numpy_time += (time.time() - t1)
-        print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
+        #print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
         return ret
 
     # handle PIL Image
@@ -65,7 +65,7 @@ def to_tensor(pic):
     img = img.view(pic.size[1], pic.size[0], len(pic.getbands()))
     # put it from HWC to CHW format
     img = img.permute((2, 0, 1)).contiguous()
-    print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
+    #print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
     if isinstance(img, torch.ByteTensor):
         return img.to(dtype=default_float_dtype).div(255)
     else:
@@ -103,7 +103,7 @@ def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool
     t1 = time.time()
     mean = torch.as_tensor(mean, dtype=dtype, device=tensor.device)
     std = torch.as_tensor(std, dtype=dtype, device=tensor.device)
-    print(f"NormalizeAsTensor: {time.time() - t1}", flush=True)
+    #print(f"NormalizeAsTensor: {time.time() - t1}", flush=True)
     if (std == 0).any():
         raise ValueError(f"std evaluated to zero after conversion to {dtype}, leading to division by zero.")
     if mean.ndim == 1:
@@ -268,7 +268,7 @@ class Collect:
         if 'bbox_id' in results:
             meta['bbox_id'] = results['bbox_id']
         data[self.meta_name] = DC(meta, cpu_only=True)
-        print(f"Collect: {time.time() - t1}", flush=True)
+        #print(f"Collect: {time.time() - t1}", flush=True)
         return data
 
     def __repr__(self):

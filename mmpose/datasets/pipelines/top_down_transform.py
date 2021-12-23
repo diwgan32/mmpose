@@ -245,7 +245,7 @@ class TopDownAffine:
         results['img'] = img
         results['joints_3d'] = joints_3d
         results['joints_3d_visible'] = joints_3d_visible
-        print(f"TopDownAffine: {time.time() - t1}", flush=True)
+        #print(f"TopDownAffine: {time.time() - t1}", flush=True)
         return results
 
 

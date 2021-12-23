@@ -175,7 +175,7 @@ class LoadImage:
         else:
             raise TypeError('"img_or_path" must be a numpy array or a str or '
                             'a pathlib.Path object')
-        print(f"LoadImageLocal: {time.time() - t1}")
+        #print(f"LoadImageLocal: {time.time() - t1}")
         results['img'] = img
         return results
 
@@ -349,7 +349,7 @@ def _inference_single_pose_model(model,
         }
         data = test_pipeline(data)
         batch_data.append(data)
-    print(f"Model pipeline time: {time.time() - t2}", flush=True)
+    #print(f"Model pipeline time: {time.time() - t2}", flush=True)
     batch_data = collate(batch_data, samples_per_gpu=1)
     batch_data['img'] = batch_data['img'].to(device)
     # get all img_metas of each bounding box
@@ -388,7 +388,7 @@ def _inference_single_pose_model(model,
                 img_metas=batch_data['img_metas'],
                 return_loss=False,
                 return_heatmap=return_heatmap)
-    print(f"Model pose time: {time.time() - t1}", flush=True)
+    #print(f"Model pose time: {time.time() - t1}", flush=True)
         
     return result['preds'], result['output_heatmap']
 
