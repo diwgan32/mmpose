@@ -371,13 +371,14 @@ def _inference_single_pose_model(model,
                 heatmap = trt_result['2947']
                 heatmap_np = heatmap.cpu().detach().numpy()
                 
+                post_processed = keypoints_from_heatmaps(
+                    heatmap_np,
+                    batch_data["img_metas"][n]["center"][None, :],
+                    batch_data["img_metas"][n]["scale"][None, :]
+                )
                 keypoints.append(np.hstack((
-                    keypoints_from_heatmaps(
-                        heatmap_np,
-                        batch_data["img_metas"][n]["center"][None, :],
-                        batch_data["img_metas"][n]["scale"][None, :]
-                    )[0][0], 
-                    np.ones((17, 1))
+                    post_processed[0][0], 
+                    post_processed[1][0]
                 )))
             result = {}
             result["preds"] = np.array(keypoints)
