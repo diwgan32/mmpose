@@ -93,6 +93,20 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
         self.joint_num = 17
         self.old_to_new_coords = [0, 1, 2, 3, 4, 5, 6, 7, 0, 8, 10, 11, 12, 13, 14, 15, 16]
 
+        self.child_datasets = []
+        for i in range(len(child_types)):
+            obj_cls = DATASETS.get(child_types[i])
+            self.child_datasets.append(
+                obj_cls(
+                    ann_file[0]
+                    img_prefix[0],
+                    data_cfg[0],
+                    pipeline,
+                    dataset_info=dataset_info,
+                    test_mode=test_mode
+
+                )
+            )
         super().__init__(
             ann_file,
             img_prefix,
