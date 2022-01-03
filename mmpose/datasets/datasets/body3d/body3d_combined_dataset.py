@@ -118,8 +118,6 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
 
 
     def load_config(self, data_cfg_list):
-        for i in range(len(self.child_datasets)):
-            self.child_datasets[i].load_config(data_cfg_list[i])
         self.seq_len = self.child_datasets[0].seq_len
         self.causal = self.child_datasets[0].causal
         self.num_joints = self.child_datasets[0].num_joints
@@ -138,8 +136,9 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
             'scales': [],
             'centers': [],
         }
+
         for i in range(len(self.child_datasets)):
-            ret = self.child_datasets[i].load_annotations()
+            ret = self.child_datasets[i].data_info
             self.lens.append(len(ret['imgnames']))
             data_info['imgnames'] += ret['imgnames'].tolist()
             data_info['joints_3d'] += ret['joints_3d'].tolist()
@@ -152,13 +151,12 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
         data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
-        print(f'Final len: {data["imgnames"]}')
         return data_info
 
     def build_sample_indices(self):
         sample_indices = []
         for i in range(len(self.child_datasets)):
-            ret = self.child_datasets[i].build_sample_indices()
+            ret = self.child_datasets[i].sample_indices
             ret = np.array(ret)
             if (i > 0):
                 ret += self.lens[i-1]
