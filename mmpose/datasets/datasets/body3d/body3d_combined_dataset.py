@@ -11,6 +11,7 @@ from mmcv import Config
 
 from mmpose.core.evaluation import keypoint_mpjpe
 from mmpose.datasets.datasets.base import Kpt3dSviewKpt2dDataset
+from mmpose.datasets.datasets.body3d import Body3DH36MModifiedDataset
 from ...builder import DATASETS
 
 @DATASETS.register_module(name="Body3DCombinedDataset")
@@ -98,7 +99,7 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
             obj_cls = DATASETS.get(child_types[i])
             self.child_datasets.append(
                 obj_cls(
-                    ann_file[0]
+                    ann_file[0],
                     img_prefix[0],
                     data_cfg[0],
                     pipeline,
