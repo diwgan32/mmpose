@@ -99,9 +99,9 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
             obj_cls = DATASETS.get(child_types[i])
             self.child_datasets.append(
                 obj_cls(
-                    ann_file[0],
-                    img_prefix[0],
-                    data_cfg[0],
+                    ann_file[i],
+                    img_prefix[i],
+                    data_cfg[i],
                     pipeline,
                     dataset_info=dataset_info,
                     test_mode=test_mode
@@ -118,7 +118,8 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
 
 
     def load_config(self, data_cfg_list):
-        self.child_datasets[0].load_config(data_cfg_list[0])
+        for i in range(len(self.child_datasets)):
+            self.child_datasets[i].load_config(data_cfg_list[i])
         self.seq_len = self.child_datasets[0].seq_len
         self.causal = self.child_datasets[0].causal
         self.num_joints = self.child_datasets[0].num_joints
@@ -157,7 +158,7 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
     def build_sample_indices(self):
         sample_indices = []
         for i in range(len(self.child_datasets)):
-            ret = self.child_datasets[0].build_sample_indices()
+            ret = self.child_datasets[i].build_sample_indices()
             ret = np.array(ret)
             if (i > 0):
                 ret += self.lens[i-1]
