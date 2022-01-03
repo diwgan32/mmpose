@@ -69,6 +69,7 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
     ALLOWED_METRICS = {'mpjpe', 'p-mpjpe', 'n-mpjpe'}
 
     def __init__(self,
+                 child_types,
                  ann_file,
                  img_prefix,
                  data_cfg,
@@ -286,11 +287,11 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
             action_idx = img['action_idx']; subaction_idx = img['subaction_idx']; frame_idx = img['frame_idx'];
             joint_world = np.array(joints[str(subject)][str(action_idx)][str(subaction_idx)][str(frame_idx)], dtype=np.float32)
             #joint_world = self._transform_coords(joint_world)
-            joint_cam = Body3DH36MModifiedDataset._world2cam(joint_world, R, t)
-            joint_img = Body3DH36MModifiedDataset._cam2pixel(joint_cam, f, c)
+            joint_cam = Body3DCombinedDataset._world2cam(joint_world, R, t)
+            joint_img = Body3DCombinedDataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
-            bbox = Body3DH36MModifiedDataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
+            bbox = Body3DCombinedDataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
             if bbox is None: continue
             root_cam = joint_cam[self.root_idx]
 

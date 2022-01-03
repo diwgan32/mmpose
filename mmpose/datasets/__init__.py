@@ -8,7 +8,7 @@ from .datasets import (  # isort:skip
     AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
     AnimalLocustDataset, AnimalMacaqueDataset, AnimalPoseDataset,
     AnimalZebraDataset, Body3DH36MDataset, Body3DH36MModifiedDataset, Body3DAISTDataset,
-    BottomUpAicDataset, Body3DCombinedDataset
+    BottomUpAicDataset, Body3DCombinedDataset,
     BottomUpCocoDataset, BottomUpCocoWholeBodyDataset,
     BottomUpCrowdPoseDataset, BottomUpMhpDataset, DeepFashionDataset,
     Face300WDataset, FaceAFLWDataset, FaceCocoWholeBodyDataset,
