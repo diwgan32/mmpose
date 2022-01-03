@@ -118,7 +118,15 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
 
 
     def load_config(self, data_cfg_list):
-        self.child_datasets[0].load_config(data_cfg_list)
+        self.child_datasets[0].load_config(data_cfg_list[0])
+        self.seq_len = self.child_datasets[0].seq_len
+        self.causal = self.child_datasets[0].causal
+        self.num_joints = self.child_datasets[0].num_joints
+        self.seq_frame_interval = self.child_datasets[0].seq_frame_interval 
+        self.temporal_padding = self.child_datasets[0].temporal_padding
+        self.subset = self.child_datasets[0].subset
+        self.need_2d_label = self.child_datasets[0].need_2d_label
+        self.need_camera_param = False
 
     def load_annotations(self):
         return self.child_datasets[0].load_annotations()
