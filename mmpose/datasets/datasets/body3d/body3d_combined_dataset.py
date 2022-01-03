@@ -301,10 +301,10 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
             data_info["scales"].append(max(bbox[2], bbox[3]))
             center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
             data_info["centers"].append(center)
-        data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
-        data_info["joints_2d"] = np.array(data_info["joints_2d"])
-        data_info["scales"] = np.array(data_info["scales"])
-        data_info["centers"] = np.array(data_info["centers"])
+        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/1000
+        data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
+        data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
+        data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
         return data_info
 
