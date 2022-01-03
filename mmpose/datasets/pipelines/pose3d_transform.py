@@ -151,14 +151,10 @@ class ImageCoordinateNormalization:
             self.camera_param = camera_param
 
     def __call__(self, results):
-        center = np.array(
-            [0.5 * results['image_width'], 0.5 * results['image_height']],
-            dtype=np.float32)
-        scale = np.array(0.5 * results['scales'], dtype=np.float32)
-
+        center = results['centers']
+        scale = np.max(np.array(results['scales'][:, 0] * .5, dtype=np.float32))
         for item in self.item:
-            results[item] = (results[item]) / scale[:, None, None]
-
+            results[item] = (results[item] - center[:, None, :])/scale
         if self.norm_camera:
             if self.static_camera:
                 camera_param = copy.deepcopy(self.camera_param)
