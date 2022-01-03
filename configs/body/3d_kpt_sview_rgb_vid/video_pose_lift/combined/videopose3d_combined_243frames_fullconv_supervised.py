@@ -62,8 +62,9 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = '/data/h36m/'
-data_cfg = dict(
+data_root_1 = '/data/h36m/'
+data_root_2 = '/data/aist_processed/'
+data_cfg = [dict(
     num_joints=17,
     seq_len=243,
     seq_frame_interval=1,
@@ -71,9 +72,20 @@ data_cfg = dict(
     temporal_padding=True,
     joint_2d_src='gt',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotations',
-    data_root=data_root
-)
+    camera_param_file=f'{data_root_1}/annotations',
+    data_root=data_root_1
+),
+dict(
+    num_joints=17,
+    seq_len=243,
+    seq_frame_interval=1,
+    causal=False,
+    temporal_padding=True,
+    joint_2d_src='gt',
+    need_camera_param=True,
+    camera_param_file=f'{data_root_2}/cameras',
+    data_root=data_root_2
+)]
 
 train_pipeline = [
     dict(
@@ -127,26 +139,26 @@ data = dict(
     test_dataloader=dict(samples_per_gpu=128),
     train=dict(
         type='Body3DCombinedDataset',
-        child_types=['Body3DH36MModifiedDataset'],
-        ann_file=[f'{data_root}/annotations'],
-        img_prefix=[f'{data_root}/images/'],
-        data_cfg=[data_cfg],
+        child_types=['Body3DH36MModifiedDataset', 'Body3DAISTDataset'],
+        ann_file=[f'{data_root_1}/annotations', f'{data_root_2}/'],
+        img_prefix=[f'{data_root_1}/images/', f'{data_root_2}/'],
+        data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
         type='Body3DCombinedDataset',
-        child_types=['Body3DH36MModifiedDataset'],
-        ann_file=[f'{data_root}/annotations'],
-        img_prefix=[f'{data_root}/images/'],
-        data_cfg=[data_cfg],
+        child_types=['Body3DH36MModifiedDataset', 'Body3DAISTDataset'],
+        ann_file=[f'{data_root_1}/annotations', f'{data_root_2}/'],
+        img_prefix=[f'{data_root_1}/images/', f'{data_root_2}/'],
+        data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
         type='Body3DCombinedDataset',
-        child_types=['Body3DH36MModifiedDataset'],
-        ann_file=[f'{data_root}/annotations'],
-        img_prefix=[f'{data_root}/images/'],
-        data_cfg=[data_cfg],
+        child_types=['Body3DH36MModifiedDataset', 'Body3DAISTDataset'],
+        ann_file=[f'{data_root_1}/annotations', f'{data_root_2}/'],
+        img_prefix=[f'{data_root_1}/images/', f'{data_root_2}/'],
+        data_cfg=data_cfg,
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}})
 )
