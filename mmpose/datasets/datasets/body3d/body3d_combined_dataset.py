@@ -129,20 +129,33 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
         self.need_camera_param = False
 
     def load_annotations(self):
-        return self.child_datasets[0].load_annotations()
+        self.lens = []
+        data_info = {
+            'imgnames': [],
+            'joints_3d': [],
+            'joints_2d': [],
+            'scales': [],
+            'centers': [],
+        }
+        for i in range(len(self.child_datasets)):
+            ret = self.child_datasets[i].load_annotations()
+            self.lens.append(len(ret['imgnames']))
+            data_info['imgnames'] += ret['imgnames']
+            data_info['joints_3d'] += ret['joints_3d']
+            data_info['joints_2d'] += ret['joints_2d']
+            data_info['scales'] += ret['scales']
+            data_info['centers'] += ret['centers']
 
-    @staticmethod
-    def _parse_h36m_imgname(imgname):
-        """Parse imgname to get information of subject, action and camera.
-
-        A typical h36m modified image filename is like:
-        s_11_act_16_subact_02_ca_04_001360.jpg
-        """
-        name_parts = osp.basename(imgname).split('_')
-        return name_parts[1], name_parts[3]+"_"+name_parts[5], name_parts[7]
+        return data_info
 
     def build_sample_indices(self):
-        return self.child_datasets[0].build_sample_indices()
+        sample_indices = []
+        for i in range(self.child_datasets):
+            ret = self.child_datasets[0].build_sample_indices()
+            ret = np.array(ret)
+            if (i > 0):
+                ret += self.lens[i-1]
+            sample_indices += ret.tolist()
 
     def evaluate(self,
                  outputs,
@@ -153,5 +166,13 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
 
         return self.child_datasets[0].evaluate(outputs, res_folder, metrix, logger, **kwargs)
 
+    # Make cleaner
     def get_camera_param(self, imgname):
-        return self.child_datasets[0].get_camera_param(imgname)
+        for i in range(len(self.child_datasets)):
+            ret = None
+            try:
+                ret = self.child_datasets[i].get_camera_param(imgname)
+            except:
+                continue
+            return ret
+

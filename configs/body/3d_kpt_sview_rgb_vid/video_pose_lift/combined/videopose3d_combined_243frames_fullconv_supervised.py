@@ -71,7 +71,8 @@ data_cfg = dict(
     temporal_padding=True,
     joint_2d_src='gt',
     need_camera_param=True,
-    camera_param_file=f'{data_root}/annotations'
+    camera_param_file=f'{data_root}/annotations',
+    data_root=data_root
 )
 
 train_pipeline = [
