@@ -30,11 +30,11 @@ https://user-images.githubusercontent.com/15977946/124654387-0fd3c500-ded1-11eb-
 - **更高的精度和更快的速度**
 
   MMPose 复现了多种学界最先进的人体姿态分析模型，包括“自顶向下”和“自底向上”两大类算法。MMPose 相比于其他主流的代码库，具有更高的模型精度和训练速度。
-  具体请参考 [基准测试](docs/benchmark.md)。
+  具体请参考 [基准测试](docs/en/benchmark.md)（英文）。
 
 - **支持多样的数据集**
 
-  MMPose 支持了很多主流数据集的准备和构建，如 COCO、 MPII 等。 具体请参考 [数据集准备](docs/data_preparation.md)。
+  MMPose 支持了很多主流数据集的准备和构建，如 COCO、 MPII 等。 具体请参考 [数据集准备](docs/en/data_preparation.md)。
 
 - **模块化设计**
 
@@ -112,6 +112,7 @@ https://user-images.githubusercontent.com/15977946/124654387-0fd3c500-ded1-11eb-
 - [x] [InterHand2.6M](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#interhand2-6m-eccv-2020) \[[homepage](https://mks0601.github.io/InterHand2.6M/)\] (ECCV'2020)
 - [x] [DeepFashion](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#deepfashion-cvpr-2016) \[[homepage](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion/LandmarkDetection.html)\] (CVPR'2016)
 - [x] [Animal-Pose](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#animal-pose-iccv-2019) \[[homepage](https://sites.google.com/view/animal-pose/)\] (ICCV'2019)
+- [x] [AP-10K](https://arxiv.org/abs/2108.12617) \[[homepage](https://github.com/AlexTheBad/AP-10K)\] (NeurIPS'2021)
 - [x] [Horse-10](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#horse-10-wacv-2021) \[[homepage](http://www.mackenziemathislab.org/horse10)\] (WACV'2021)
 - [x] [MacaquePose](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#macaquepose-biorxiv-2020) \[[homepage](http://www.pri.kyoto-u.ac.jp/datasets/macaquepose/index.html)\] (bioRxiv'2020)
 - [x] [Vinegar Fly](https://mmpose.readthedocs.io/zh_CN/latest/papers/datasets.html#vinegar-fly-nature-methods-2019) \[[homepage](https://github.com/jgraving/DeepPoseKit-Data)\] (Nature Methods'2019)
@@ -161,32 +162,38 @@ https://user-images.githubusercontent.com/15977946/124654387-0fd3c500-ded1-11eb-
 | hrnet_w48  |  256x192   |    **0.66**     |                                       1.55                                       |  **0.756**   |                                     0.751                                     |
 | hrnet_w48  |  384x288   |    **1.23**     |                                       2.20                                       |  **0.767**   |                                     0.763                                     |
 
-更多详情可见 [基准测试](docs/benchmark.md)。
+更多详情可见 [基准测试](docs/en/benchmark.md)(英文)。
+
+## 推理速度
+
+我们总结了 MMPose 中主要模型的复杂度信息和推理速度，包括模型的计算复杂度、参数数量，以及以不同的批处理大小在 CPU 和 GPU 上的推理速度。
+
+详细信息可见 [模型推理速度](docs/zh_cn/inference_speed_summary.md).
 
 ## 安装
 
-请参考 [安装指南](docs/install.md) 进行安装。
+请参考 [安装指南](docs/zh_cn/install.md) 进行安装。
 
 ## 数据准备
 
-请参考 [data_preparation.md](docs/data_preparation.md) 进行数据集准备。
+请参考 [data_preparation.md](docs/en/data_preparation.md)（英文） 进行数据集准备。
 
 ## 教程
 
-请参考 [getting_started.md](docs/getting_started.md) 了解 MMPose 的基本使用。
+请参考 [getting_started.md](docs/zh_cn/getting_started.md) 了解 MMPose 的基本使用。
 MMPose 也提供了其他更详细的教程:
 
-- [如何编写配置文件](docs/tutorials/0_config.md)
-- [如何微调模型](docs/tutorials/1_finetune.md)
-- [如何增加新数据集](docs/tutorials/2_new_dataset.md)
-- [如何设计数据处理流程](docs/tutorials/3_data_pipeline.md)
-- [如何增加新模块](docs/tutorials/4_new_modules.md)
-- [如何导出模型为 onnx 格式](docs/tutorials/5_export_model.md)
-- [如何自定义模型运行参数](docs/tutorials/6_customize_runtime.md)
+- [如何编写配置文件](docs/zh_cn/tutorials/0_config.md)
+- [如何微调模型](docs/zh_cn/tutorials/1_finetune.md)
+- [如何增加新数据集](docs/zh_cn/tutorials/2_new_dataset.md)
+- [如何设计数据处理流程](docs/zh_cn/tutorials/3_data_pipeline.md)
+- [如何增加新模块](docs/zh_cn/tutorials/4_new_modules.md)
+- [如何导出模型为 onnx 格式](docs/zh_cn/tutorials/5_export_model.md)
+- [如何自定义模型运行参数](docs/en/tutorials/6_customize_runtime.md)(英文)
 
 ## 常见问题
 
-请参考 [FAQ](docs/faq.md) 了解其他用户的常见问题。
+请参考 [FAQ](docs/en/faq.md) 了解其他用户的常见问题。
 
 ## 许可
 
@@ -228,13 +235,16 @@ MMPose 是一款由不同学校和公司共同贡献的开源项目。我们感�
 - [MMEditing](https://github.com/open-mmlab/mmediting): OpenMMLab 图像视频编辑工具箱
 - [MMOCR](https://github.com/open-mmlab/mmocr): OpenMMLab 全流程文字检测识别理解工具包
 - [MMGeneration](https://github.com/open-mmlab/mmgeneration): OpenMMLab 新一代生成模型工具箱
+- [MMFlow](https://github.com/open-mmlab/mmflow): OpenMMLab 光流估计工具箱与测试基准
+- [MMFewShot](https://github.com/open-mmlab/mmfewshot): OpenMMLab 少样本学习工具箱与测试基准
+- [MMHuman3D](https://github.com/open-mmlab/mmhuman3d): OpenMMLab 人体参数化模型工具箱与测试基准
 
 ## 欢迎加入 OpenMMLab 社区
 
 扫描下方的二维码可关注 OpenMMLab 团队的 [知乎官方账号](https://www.zhihu.com/people/openmmlab)，加入 OpenMMLab 团队的 [官方交流 QQ 群](https://jq.qq.com/?_wv=1027&k=GJP18SjI)
 
 <div align="center">
-<img src="docs/imgs/zhihu_qrcode.jpg" height="400" />  <img src="docs/imgs/qq_group2_qrcode.jpg" height="400" />
+<img src="docs/en/imgs/zhihu_qrcode.jpg" height="400" />  <img src="docs/en/imgs/qq_group2_qrcode.jpg" height="400" />
 </div>
 
 我们会在 OpenMMLab 社区为大家

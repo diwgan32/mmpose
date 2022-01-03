@@ -31,12 +31,12 @@ https://user-images.githubusercontent.com/15977946/124654387-0fd3c500-ded1-11eb-
 - **Higher efficiency and higher accuracy**
 
   MMPose implements multiple state-of-the-art (SOTA) deep learning models, including both top-down & bottom-up approaches. We achieve faster training speed and higher accuracy than other popular codebases, such as [HRNet](https://github.com/leoxiaobin/deep-high-resolution-net.pytorch).
-  See [benchmark.md](docs/benchmark.md) for more information.
+  See [benchmark.md](docs/en/benchmark.md) for more information.
 
 - **Support for various datasets**
 
   The toolbox directly supports multiple popular and representative datasets, COCO, AIC, MPII, MPII-TRB, OCHuman etc.
-  See [data_preparation.md](docs/data_preparation.md) for more information.
+  See [data_preparation.md](docs/en/data_preparation.md) for more information.
 
 - **Well designed, tested and documented**
 
@@ -112,6 +112,7 @@ Supported [datasets](https://mmpose.readthedocs.io/en/latest/datasets.html):
 - [x] [InterHand2.6M](https://mmpose.readthedocs.io/en/latest/papers/datasets.html#interhand2-6m-eccv-2020) \[[homepage](https://mks0601.github.io/InterHand2.6M/)\] (ECCV'2020)
 - [x] [DeepFashion](https://mmpose.readthedocs.io/en/latest/papers/datasets.html#deepfashion-cvpr-2016) \[[homepage](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion/LandmarkDetection.html)\] (CVPR'2016)
 - [x] [Animal-Pose](https://mmpose.readthedocs.io/en/latest/papers/datasets.html#animal-pose-iccv-2019) \[[homepage](https://sites.google.com/view/animal-pose/)\] (ICCV'2019)
+- [x] [AP-10K](https://arxiv.org/abs/2108.12617) \[[homepage](https://github.com/AlexTheBad/AP-10K)\] (NeurIPS'2021)
 - [x] [Horse-10](https://mmpose.readthedocs.io/en/latest/papers/datasets.html#horse-10-wacv-2021) \[[homepage](http://www.mackenziemathislab.org/horse10)\] (WACV'2021)
 - [x] [MacaquePose](https://mmpose.readthedocs.io/en/latest/papers/datasets.html#macaquepose-biorxiv-2020) \[[homepage](http://www.pri.kyoto-u.ac.jp/datasets/macaquepose/index.html)\] (bioRxiv'2020)
 - [x] [Vinegar Fly](https://mmpose.readthedocs.io/en/latest/papers/datasets.html#vinegar-fly-nature-methods-2019) \[[homepage](https://github.com/jgraving/DeepPoseKit-Data)\] (Nature Methods'2019)
@@ -162,32 +163,38 @@ We demonstrate the superiority of our MMPose framework in terms of speed and acc
 | hrnet_w48  | 256x192  | **0.66** | 1.55 | **0.756** | 0.751 |
 | hrnet_w48  | 384x288  | **1.23** | 2.20 | **0.767** | 0.763 |
 
-More details about the benchmark are available on [benchmark.md](docs/benchmark.md).
+More details about the benchmark are available on [benchmark.md](docs/en/benchmark.md).
+
+## Inference Speed
+
+We summarize the model complexity and inference speed of major models in MMPose, including FLOPs, parameter counts and inference speeds on both CPU and GPU devices with different batch sizes.
+
+Please refer to [inference_speed_summary.md](docs/en/inference_speed_summary.md) for more details.
 
 ## Installation
 
-Please refer to [install.md](docs/install.md) for installation.
+Please refer to [install.md](docs/en/install.md) for installation.
 
 ## Data Preparation
 
-Please refer to [data_preparation.md](docs/data_preparation.md) for a general knowledge of data preparation.
+Please refer to [data_preparation.md](docs/en/data_preparation.md) for a general knowledge of data preparation.
 
 ## Get Started
 
-Please see [getting_started.md](docs/getting_started.md) for the basic usage of MMPose.
+Please see [getting_started.md](docs/en/getting_started.md) for the basic usage of MMPose.
 There are also tutorials:
 
-- [learn about configs](docs/tutorials/0_config.md)
-- [finetune model](docs/tutorials/1_finetune.md)
-- [add new dataset](docs/tutorials/2_new_dataset.md)
-- [customize data pipelines](docs/tutorials/3_data_pipeline.md)
-- [add new modules](docs/tutorials/4_new_modules.md)
-- [export a model to ONNX](docs/tutorials/5_export_model.md)
-- [customize runtime settings](docs/tutorials/6_customize_runtime.md)
+- [learn about configs](docs/en/tutorials/0_config.md)
+- [finetune model](docs/en/tutorials/1_finetune.md)
+- [add new dataset](docs/en/tutorials/2_new_dataset.md)
+- [customize data pipelines](docs/en/tutorials/3_data_pipeline.md)
+- [add new modules](docs/en/tutorials/4_new_modules.md)
+- [export a model to ONNX](docs/en/tutorials/5_export_model.md)
+- [customize runtime settings](docs/en/tutorials/6_customize_runtime.md)
 
 ## FAQ
 
-Please refer to [FAQ](docs/faq.md) for frequently asked questions.
+Please refer to [FAQ](docs/en/faq.md) for frequently asked questions.
 
 ## License
 
@@ -228,5 +235,8 @@ We wish that the toolbox and benchmark could serve the growing research communit
 - [MMTracking](https://github.com/open-mmlab/mmtracking): OpenMMLab video perception toolbox and benchmark.
 - [MMPose](https://github.com/open-mmlab/mmpose): OpenMMLab pose estimation toolbox and benchmark.
 - [MMEditing](https://github.com/open-mmlab/mmediting): OpenMMLab image and video editing toolbox.
-- [MMOCR](https://github.com/open-mmlab/mmocr): A Comprehensive Toolbox for Text Detection, Recognition and Understanding.
+- [MMOCR](https://github.com/open-mmlab/mmocr): A comprehensive toolbox for text detection, recognition and understanding.
 - [MMGeneration](https://github.com/open-mmlab/mmgeneration): OpenMMLab next-generation toolbox for generative models.
+- [MMFlow](https://github.com/open-mmlab/mmflow): OpenMMLab optical flow toolbox and benchmark.
+- [MMFewShot](https://github.com/open-mmlab/mmfewshot): OpenMMLab fewshot learning toolbox and benchmark.
+- [MMHuman3D](https://github.com/open-mmlab/mmhuman3d): OpenMMLab 3D human parametric model toolbox and benchmark.

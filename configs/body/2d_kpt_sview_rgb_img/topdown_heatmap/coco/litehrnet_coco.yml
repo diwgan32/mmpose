@@ -1,16 +1,15 @@
 Collections:
-- Metadata:
-    Architecture:
-    - LiteHRNet
-  Name: Body 2D Keypoint topdown_heatmap coco
+- Name: LiteHRNet
   Paper:
     Title: 'Lite-HRNet: A Lightweight High-Resolution Network'
     URL: https://arxiv.org/abs/2104.06403
-  README: configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/litehrnet_coco.md
+  README: https://github.com/open-mmlab/mmpose/blob/master/docs/en/papers/algorithms/litehrnet.md
 Models:
 - Config: configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/litehrnet_30_coco_256x192.py
-  In Collection: Body 2D Keypoint topdown_heatmap coco
+  In Collection: LiteHRNet
   Metadata:
+    Architecture: &id001
+    - LiteHRNet
     Training Data: COCO
   Name: topdown_heatmap_litehrnet_30_coco_256x192
   Results:
@@ -24,8 +23,9 @@ Models:
     Task: Body 2D Keypoint
   Weights: https://download.openmmlab.com/mmpose/top_down/litehrnet/litehrnet30_coco_256x192-4176555b_20210626.pth
 - Config: configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/litehrnet_30_coco_384x288.py
-  In Collection: Body 2D Keypoint topdown_heatmap coco
+  In Collection: LiteHRNet
   Metadata:
+    Architecture: *id001
     Training Data: COCO
   Name: topdown_heatmap_litehrnet_30_coco_384x288
   Results:

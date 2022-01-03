@@ -22,7 +22,8 @@ from .top_down import (TopDownAicDataset, TopDownCocoDataset,
                        TopDownH36MDataset, TopDownHalpeDataset,
                        TopDownJhmdbDataset, TopDownMhpDataset,
                        TopDownMpiiDataset, TopDownMpiiTrbDataset,
-                       TopDownOCHumanDataset, TopDownPoseTrack18Dataset)
+                       TopDownOCHumanDataset, TopDownPoseTrack18Dataset,
+                       TopDownPoseTrack18VideoDataset)
 
 __all__ = [
     'TopDownCocoDataset', 'BottomUpCocoDataset', 'BottomUpMhpDataset',
@@ -41,5 +42,6 @@ __all__ = [
     'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
-    'TopDownHalpeDataset', 'Body3DPanopticDataset', 'Body3DCombinedDataset'
+    'TopDownHalpeDataset', 'Body3DPanopticDataset', 'Body3DCombinedDataset', 
+    'TopDownPoseTrack18VideoDataset'
 ]
