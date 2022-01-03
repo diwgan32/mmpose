@@ -216,7 +216,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         sequences_actually_read = []
         count = 0
         sampling_ratio = self._get_subsampling_ratio()
-        flag = False
+        flag = True
         for file_ in files:
             if (random.randint(1, 100) >= 50):
                 continue
@@ -292,6 +292,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         # Group frames into videos. Assume that self.data_info is
         # chronological.
         video_frames = defaultdict(list)
+        print(f"AIST len: {len(self.data_info['imgnames'])}")
         for idx, imgname in enumerate(self.data_info['imgnames']):
             subj, action, camera = self._parse_aist_imgname(imgname)
 

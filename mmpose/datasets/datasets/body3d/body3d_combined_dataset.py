@@ -152,7 +152,7 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
         data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
-
+        print(f'Final len: {data["imgnames"]}')
         return data_info
 
     def build_sample_indices(self):

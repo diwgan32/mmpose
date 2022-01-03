@@ -165,6 +165,7 @@ class Body3DH36MDataset(Kpt3dSviewKpt2dDataset):
         # Group frames into videos. Assume that self.data_info is
         # chronological.
         video_frames = defaultdict(list)
+        print(f"H36M len: {len(self.data_info['imgnames'])}")
         for idx, imgname in enumerate(self.data_info['imgnames']):
             subj, action, camera = self._parse_h36m_imgname(imgname)
 
