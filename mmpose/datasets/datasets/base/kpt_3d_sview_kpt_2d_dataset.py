@@ -269,7 +269,11 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             ret = self.pipeline(results)
             for i in range(results["image_paths"].shape[0]):
                 a = ret["input"].cpu().detach().numpy()
+                input_2d_visible = results["input_2d_visible"][i]
+
                 arr = a[:, i].reshape((self.num_joints, 2))
+                arr = np.hstack((pose_result, arr))
+    
                 tail = results["image_paths"][i]
                 img = f"{path}/{tail}"
                 processed_img = image.show_keypoints(

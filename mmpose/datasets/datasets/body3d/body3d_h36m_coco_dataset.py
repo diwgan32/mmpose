@@ -76,7 +76,7 @@ class Body3DH36MCOCODataset(Kpt3dSviewKpt2dDataset):
     ]
 
     H36M_TO_COCO = [
-        -1, -1, -1, -1, -1, 11, 14, 12, 15, 13, 16, 4, 1, 5, 2, 6, 3, 0, -1
+        -1, -1, -1, -1, -1, 11, 14, 12, 15, 13, 16, 4, 1, 5, 2, 6, 3, 0, 10
     ]
 
     # 2D joint source options:
