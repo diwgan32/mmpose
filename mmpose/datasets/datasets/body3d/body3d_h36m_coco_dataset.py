@@ -470,7 +470,7 @@ class Body3DH36MCOCODataset(Kpt3dSviewKpt2dDataset):
                 self.data_info['joints_3d'][target_id], [3], axis=-1)
             preds.append(pred)
             gts.append(gt)
-            masks.append(np.ones((19, 1)))
+            masks.append(gt_visible)
             action = self._parse_h36m_imgname(
                 self.data_info['imgnames'][target_id])[1]
             action_category = action.split('_')[0]

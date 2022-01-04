@@ -193,6 +193,7 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
         results = {
             'input_2d': _joints_2d[:, :, :2],
             'input_2d_visible': _joints_2d[:, :, -1:],
+            'target_weight': _joints_2d[:, :, -1:],
             'input_3d': _joints_3d[:, :, :3],
             'input_3d_visible': _joints_3d[:, :, -1:],
             'target': _joints_3d[target_idx, :, :3],
