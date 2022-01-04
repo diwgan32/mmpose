@@ -94,7 +94,7 @@ train_pipeline = [
     dict(type='PoseSequenceToTensor', item='input_2d'),
     dict(
         type='Collect',
-        keys=[('input_2d', 'input'), 'target'],
+        keys=[('input_2d', 'input'), 'target_weight', 'target'],
         meta_name='metas',
         meta_keys=['target_image_path', 'flip_pairs', 'root_position'])
 ]
