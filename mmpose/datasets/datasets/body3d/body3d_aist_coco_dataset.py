@@ -235,9 +235,10 @@ class Body3DAISTCOCODataset(Kpt3dSviewKpt2dDataset):
                 joint_vis = np.ones((self.joint_num,1))
 
                 data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
-                data_info["joints_3d"].append(joint_cam)
-                data_info["joints_2d"].append(joint_img[:, :2])
-                
+
+                data_info["joints_3d"].append(np.hstack((joint_cam, joint_vis)))
+                data_info["joints_2d"].append(np.hstack((joint_img[:, :2], joint_vis)))
+
                 data_info["scales"].append(max(bbox[2], bbox[3]))
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
                 data_info["centers"].append(joint_img[self.AIST_COCO_PELVIS_IDX, :2])

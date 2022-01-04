@@ -307,13 +307,14 @@ class Body3DH36MCOCODataset(Kpt3dSviewKpt2dDataset):
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
             joint_vis[[0, 1, 2, 3, 4]] = 0
+
             bbox = Body3DH36MCOCODataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
             if bbox is None: continue
             root_cam = joint_cam[self.root_idx]
 
             data_info["imgnames"].append(img['file_name'])
-            data_info["joints_3d"].append(joint_cam)
-            data_info["joints_2d"].append(joint_img[:, :2])
+            data_info["joints_3d"].append(np.hstack((joint_cam, joint_vis)))
+            data_info["joints_2d"].append(np.hstack((joint_img[:, :2], joint_vis)))
             data_info["scales"].append(max(bbox[2], bbox[3]))
             center = joint_img[17, :2]
             data_info["centers"].append(center)
