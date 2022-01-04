@@ -216,7 +216,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         sequences_actually_read = []
         count = 0
         sampling_ratio = self._get_subsampling_ratio()
-        flag = False
+        flag = True
         for file_ in files:
             if (random.randint(1, 100) >= 50):
                 continue
