@@ -5,7 +5,8 @@ from .animal import (AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
                      AnimalLocustDataset, AnimalMacaqueDataset,
                      AnimalPoseDataset, AnimalZebraDataset)
 from .body3d import (Body3DH36MDataset, Body3DH36MModifiedDataset, Body3DAISTDataset,
-                    Body3DPanopticDataset, Body3DCombinedDataset)
+                    Body3DPanopticDataset, Body3DCombinedDataset, Body3DAISTCOCODataset,
+                    Body3DH36MCOCODataset)
 from .bottom_up import (BottomUpAicDataset, BottomUpCocoDataset,
                         BottomUpCocoWholeBodyDataset, BottomUpCrowdPoseDataset,
                         BottomUpMhpDataset)
@@ -43,5 +44,6 @@ __all__ = [
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
     'TopDownHalpeDataset', 'Body3DPanopticDataset', 'Body3DCombinedDataset', 
-    'TopDownPoseTrack18VideoDataset'
+    'TopDownPoseTrack18VideoDataset', "Body3DAISTCOCODataset",
+    "Body3DH36MCOCODataset"
 ]

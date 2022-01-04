@@ -91,7 +91,7 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
         self.rshoulder_idx = 14
         self.thorax_idx = 8
         self.root_idx = 0
-        self.joint_num = 17
+        self.joint_num = 19
         self.old_to_new_coords = [0, 1, 2, 3, 4, 5, 6, 7, 0, 8, 10, 11, 12, 13, 14, 15, 16]
 
         self.child_datasets = []
