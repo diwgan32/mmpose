@@ -76,7 +76,7 @@ class Body3DH36MCOCODataset(Kpt3dSviewKpt2dDataset):
     ]
 
     H36M_TO_COCO = [
-        -1, -1, -1, -1, -1, 11, 14, 12, 15, 13, 16, 4, 1, 5, 2, 6, 3, 0
+        -1, -1, -1, -1, -1, 11, 14, 12, 15, 13, 16, 4, 1, 5, 2, 6, 3, 0, -1
     ]
 
     # 2D joint source options:
@@ -223,7 +223,7 @@ class Body3DH36MCOCODataset(Kpt3dSviewKpt2dDataset):
 
     def _transform_coords(self, joint_coord):
         transformed_coords = np.zeros((19, joint_coord.shape[1]))
-        transformed_coords[self.H36M_TO_COCO] = joint_coord
+        transformed_coords = joint_coord[self.H36M_TO_COCO]
         transformed_coords[[0, 1, 2, 3, 4]] = np.zeros((1, joint_coord.shape[1]))
         
         return transformed_coords
@@ -306,6 +306,7 @@ class Body3DH36MCOCODataset(Kpt3dSviewKpt2dDataset):
             joint_img = Body3DH36MCOCODataset._cam2pixel(joint_cam, f, c)
             joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
             joint_vis = np.ones((self.joint_num,1))
+            joint_vis[[0, 1, 2, 3, 4]] = 0
             bbox = Body3DH36MCOCODataset.process_bbox(np.array(ann['bbox']), img_width, img_height)
             if bbox is None: continue
             root_cam = joint_cam[self.root_idx]
@@ -314,7 +315,7 @@ class Body3DH36MCOCODataset(Kpt3dSviewKpt2dDataset):
             data_info["joints_3d"].append(joint_cam)
             data_info["joints_2d"].append(joint_img[:, :2])
             data_info["scales"].append(max(bbox[2], bbox[3]))
-            center = joint_img[0, :2]
+            center = joint_img[17, :2]
             data_info["centers"].append(center)
         data_info["joints_3d"] = np.array(data_info["joints_3d"])/1000
         data_info["joints_2d"] = np.array(data_info["joints_2d"])

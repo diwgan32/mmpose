@@ -124,14 +124,14 @@ dataset_info = dict(
             id=16,
             color=[255, 128, 0],
             type='lower',
-            swap='left_ankle')
+            swap='left_ankle'),
         17:
         dict(
             name='pelvis',
             id=17,
             color=[255, 128, 0],
             type='lower',
-            swap='')
+            swap=''),
         18:
         dict(
             name='head',

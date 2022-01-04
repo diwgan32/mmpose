@@ -247,8 +247,8 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
                 img = f"{path}/{tail}"
                 processed_img = image.imshow_keypoints(
                     img,
-                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0),
-                    pose_kpt_color=np.ones((17, 3)) * 255,
+                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((self.num_joints, 1)))), axis=0),
+                    pose_kpt_color=np.ones((self.num_joints, 3)) * 255,
                     skeleton=self.ann_info['skeleton'],
                     pose_link_color=np.zeros((len(self.ann_info["skeleton"]), 3))
                 )
@@ -269,13 +269,13 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             ret = self.pipeline(results)
             for i in range(results["image_paths"].shape[0]):
                 a = ret["input"].cpu().detach().numpy()
-                arr = a[:, i].reshape((17, 2))
+                arr = a[:, i].reshape((self.num_joints, 2))
                 tail = results["image_paths"][i]
                 img = f"{path}/{tail}"
                 processed_img = image.show_keypoints(
                     arr,
                     1000,
-                    pose_kpt_color=np.ones((17, 3)) * 255,
+                    pose_kpt_color=np.ones((self.num_joints, 3)) * 255,
                     skeleton=self.ann_info['skeleton'],
                     pose_link_color=np.ones((len(self.ann_info["skeleton"]), 3)) * 255
                 )
@@ -293,8 +293,8 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
                 img = f"{path}/{tail}"
                 processed_img = image.imshow_keypoints(
                     img,
-                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0),
-                    pose_kpt_color=np.zeros((17, 3)),
+                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((self.num_joints, 1)))), axis=0),
+                    pose_kpt_color=np.zeros((self.num_joints, 3)),
                     skeleton=self.ann_info['skeleton'],
                     pose_link_color=np.zeros((len(self.ann_info["skeleton"]), 3))
                 )

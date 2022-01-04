@@ -99,7 +99,8 @@ class Body3DAISTCOCODataset(Kpt3dSviewKpt2dDataset):
     def _transform_coords(self, joint_cam):
         # SPINE is average of thorax and pelvis
         head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])/4.0
-        transformed_coords = joint_cam
+        transformed_coords = np.zeros((19, joint_cam.shape[1]))
+        transformed_coords[:18] = joint_cam
         transformed_coords[self.AIST_COCO_HEAD_IDX] = head
         return transformed_coords
 
