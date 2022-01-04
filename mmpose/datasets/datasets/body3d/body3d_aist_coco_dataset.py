@@ -203,7 +203,7 @@ class Body3DAISTCOCODataset(Kpt3dSviewKpt2dDataset):
         sequences_actually_read = []
         count = 0
         sampling_ratio = self._get_subsampling_ratio()
-        flag = True
+        flag = False
         for file_ in files:
             if (random.randint(1, 100) >= 50):
                 continue
@@ -212,7 +212,7 @@ class Body3DAISTCOCODataset(Kpt3dSviewKpt2dDataset):
             for aid in db.anns.keys():
                 ann = db.anns[aid]
                 if ("is_train" in db.imgs[ann['image_id']] and 
-                        not db.imgs[ann['image_id']]["is_train"]):
+                    not db.imgs[ann['image_id']]["is_train"]):
                     continue
                 img = db.loadImgs(ann['image_id'])[0]
                 width, height = img['width'], img['height']

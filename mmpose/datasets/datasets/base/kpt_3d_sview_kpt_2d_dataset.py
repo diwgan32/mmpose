@@ -189,11 +189,10 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             _scales = np.stack([_scales, _scales], axis=1)
 
         target_idx = -1 if self.causal else int(self.seq_len) // 2
-
         results = {
             'input_2d': _joints_2d[:, :, :2],
             'input_2d_visible': _joints_2d[:, :, -1:],
-            'target_weight': _joints_2d[:, :, -1:],
+            'target_weight': _joints_2d[target_idx, :, -1:], 
             'input_3d': _joints_3d[:, :, :3],
             'input_3d_visible': _joints_3d[:, :, -1:],
             'target': _joints_3d[target_idx, :, :3],
