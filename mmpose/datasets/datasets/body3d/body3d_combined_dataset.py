@@ -151,6 +151,7 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
         data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
+        print(f'Final len: {(data_info["joints_3d"].shape)}')
         return data_info
 
     def build_sample_indices(self):
@@ -170,7 +171,7 @@ class Body3DCombinedDataset(Kpt3dSviewKpt2dDataset):
                  logger=None,
                  **kwargs):
 
-        return self.child_datasets[0].evaluate(outputs, res_folder, metrix, logger, **kwargs)
+        return self.child_datasets[0].evaluate(outputs, res_folder, metric, logger, **kwargs)
 
     # Make cleaner
     def get_camera_param(self, imgname):
