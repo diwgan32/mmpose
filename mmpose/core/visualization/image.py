@@ -128,10 +128,10 @@ def show_keypoints(pose_result,
     """
 
     img = np.zeros((canvas_size, canvas_size, 3), dtype=np.uint8)
-    pose_result[:, :2] += 1
-    pose_result[:, :2] *= (canvas_size/2)
+    pose_result += 1
+    pose_result *= (canvas_size/2)
 #    pose_result[:, 1] = canvas_size - pose_result[:, 1]
-    pose_result = np.expand_dims(pose_result, axis=0)
+    pose_result = np.expand_dims(np.hstack((pose_result, np.ones((17, 1)))), axis=0)
     return imshow_keypoints(img, pose_result, skeleton=skeleton, kpt_score_thr=kpt_score_thr,
         pose_kpt_color=pose_kpt_color, pose_link_color=pose_link_color, radius=radius,
         thickness=thickness, show_keypoint_weight=show_keypoint_weight)
@@ -238,7 +238,7 @@ def imshow_keypoints(img,
                             pos2, (int(r), int(g), int(b)),
                             thickness=thickness)
                 else:
-                    print(pos1, pos2, kpts[sk[0], 2], kpts[sk[1], 2], img_w, img_h, sk_id)
+                    pass
 
     return img
 
@@ -335,6 +335,9 @@ def imshow_keypoints_3d(
         )
         x_c = np.mean(kpts[valid, 0]) if sum(valid) > 0 else 0
         y_c = np.mean(kpts[valid, 1]) if sum(valid) > 0 else 0
+        if (np.isnan(x_c) or np.isnan(y_c)):
+            print(kpts[valid, 0])
+            print(kpts[valid, 1])
         ax.set_xlim3d([x_c - axis_limit / 2, x_c + axis_limit / 2])
         ax.set_ylim3d([y_c - axis_limit / 2, y_c + axis_limit / 2])
         ax.set_zlim3d([0, axis_limit])

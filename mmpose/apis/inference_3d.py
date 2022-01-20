@@ -1,13 +1,18 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import warnings
-
+import traceback
 import numpy as np
 import torch
 from mmcv.parallel import collate, scatter
-
+from mmpose.datasets import DatasetInfo
+import cv2
 from mmpose.datasets.pipelines import Compose
 from .inference import LoadImage, _box2cs, _xywh2xyxy, _xyxy2xywh
-
+from mmpose.core.visualization import image
+import pickle 
+from mmpose.core import imshow_bboxes, imshow_keypoints, imshow_keypoints_3d
+import mmcv
+from mmcv.utils.misc import deprecated_api_warning
 
 def extract_pose_sequence(pose_results, frame_idx, causal, seq_len, step=1):
     """Extract the target frame from 2D pose results, and pad the sequence to a
@@ -203,13 +208,43 @@ def _collate_pose_sequence(pose_results, with_track_id=True, target_frame=-1):
     return pose_sequences
 
 
+def process_bbox(bbox, width, height):
+    # sanitize bboxes
+    x, y, w, h = bbox
+    x1 = np.max((0, x))
+    y1 = np.max((0, y))
+    x2 = np.min((width - 1, x1 + np.max((0, w - 1))))
+    y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
+    if w*h > 0 and x2 >= x1 and y2 >= y1:
+        bbox = np.array([x1, y1, x2-x1, y2-y1])
+    else:
+        return None
+
+    # aspect ratio preserving bbox
+    w = bbox[2]
+    h = bbox[3]
+    c_x = bbox[0] + w/2.
+    c_y = bbox[1] + h/2.
+    aspect_ratio = 1
+    if w > aspect_ratio * h:
+        h = w / aspect_ratio
+    elif w < aspect_ratio * h:
+        w = h * aspect_ratio
+    bbox[2] = w*1.25
+    bbox[3] = h*1.25
+    bbox[0] = c_x - bbox[2]/2.
+    bbox[1] = c_y - bbox[3]/2.
+    return bbox
+    
 def inference_pose_lifter_model(model,
                                 pose_results_2d,
                                 dataset=None,
                                 dataset_info=None,
                                 with_track_id=True,
                                 image_size=None,
-                                norm_pose_2d=False):
+                                norm_pose_2d=False,
+                                output_num=0,
+                                trt=False):
     """Inference 3D pose from 2D pose sequences using a pose lifter model.
 
     Args:
@@ -245,10 +280,10 @@ def inference_pose_lifter_model(model,
     test_pipeline = Compose(cfg.test_pipeline)
 
     if dataset_info is not None:
-        flip_pairs = dataset_info.flip_pairs
-        assert 'stats_info' in dataset_info._dataset_info
-        bbox_center = dataset_info._dataset_info['stats_info']['bbox_center']
-        bbox_scale = dataset_info._dataset_info['stats_info']['bbox_scale']
+        dataset_info_obj = DatasetInfo(dataset_info)
+        flip_pairs = [[1, 4], [2, 5], [3, 6], [11, 14], [12, 15], [13, 16]]
+        bbox_center = np.array([[528, 427]], dtype=np.float32)
+        bbox_scale = 400
     else:
         warnings.warn(
             'dataset is deprecated.'
@@ -256,14 +291,16 @@ def inference_pose_lifter_model(model,
             'Check https://github.com/open-mmlab/mmpose/pull/663 for details.',
             DeprecationWarning)
         # TODO: These will be removed in the later versions.
-        if dataset == 'Body3DH36MDataset':
+        if dataset == 'Body3DH36MDataset' or dataset == 'Body3DH36MModifiedDataset' or dataset=='Body3DCombinedDataset':
             flip_pairs = [[1, 4], [2, 5], [3, 6], [11, 14], [12, 15], [13, 16]]
             bbox_center = np.array([[528, 427]], dtype=np.float32)
             bbox_scale = 400
         else:
             raise NotImplementedError()
-
-    target_idx = -1 if model.causal else len(pose_results_2d) // 2
+    if trt:
+        target_idx = len(pose_results_2d) // 2
+    else:
+        target_idx = -1 if model.causal else len(pose_results_2d) // 2
     pose_lifter_inputs = _gather_pose_lifter_inputs(pose_results_2d,
                                                     bbox_center, bbox_scale,
                                                     norm_pose_2d)
@@ -274,6 +311,7 @@ def inference_pose_lifter_model(model,
         return []
 
     batch_data = []
+    count = 0
     for seq in pose_sequences_2d:
         pose_2d = seq['keypoints'].astype(np.float32)
         T, K, C = pose_2d.shape
@@ -284,7 +322,10 @@ def inference_pose_lifter_model(model,
             input_2d_visible = pose_2d[..., 2:3]
         else:
             input_2d_visible = np.ones((T, K, 1), dtype=np.float32)
-
+        
+        for i in range(1, input_2d.shape[0]):
+            if (np.all(input_2d[i] == 0)):
+                input_2d[i] = input_2d[i-1]
         # TODO: Will be removed in the later versions
         # Dummy 3D input
         # This is for compatibility with configs in mmpose<=v0.14.0, where a
@@ -298,10 +339,23 @@ def inference_pose_lifter_model(model,
         # target_image_path is required. This part will be removed in the
         # future.
         target_image_path = None
-
+        bbox_min = np.min(input_2d, axis=1)
+        bbox_max = np.max(input_2d, axis=1)
+        bbox = np.hstack((bbox_min, bbox_max - bbox_min))
+        bbox_final = np.zeros_like(bbox)
+        for i in range(bbox.shape[0]):
+            bbox_final[i] = process_bbox(bbox[i], image_size[0], image_size[1])
+        centers = input_2d[:, 0, :]
+        scale = np.expand_dims(np.max(bbox_final[2:], axis=1), axis=1)
+        scale = np.hstack((scale, scale))
+        scale = np.where(np.isnan(scale), max(image_size[0], image_size[1])/2, scale)
+        centers[:, 0] = np.where(centers[:, 0] == 0, image_size[0]/2, centers[:, 0])
+        centers[:, 1] = np.where(centers[:, 1] == 0, image_size[1]/2, centers[:, 1])
         data = {
             'input_2d': input_2d,
             'input_2d_visible': input_2d_visible,
+            'scales': scale,
+            'centers': centers,
             'target': target,
             'target_visible': target_visible,
             'target_image_path': target_image_path,
@@ -315,24 +369,62 @@ def inference_pose_lifter_model(model,
             assert len(image_size) == 2
             data['image_width'] = image_size[0]
             data['image_height'] = image_size[1]
-
+        
+        
         data = test_pipeline(data)
         batch_data.append(data)
+        
+#         output = f"test_skel_{output_num}.mp4"
+#         disp_name = output
+#         writer = cv2.VideoWriter(
+#             filename=disp_name,
+#             fps=30,
+#             fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
+#             frameSize=(1000, 1000)
+#         )
+        
+#         a = data["input"].cpu().detach().numpy()
+#         for i in range(a.shape[1]):
+            
+#             arr = a[:, i].reshape((17, 2))
+#             processed_img = image.show_keypoints(
+#                 arr,
+#                 1000,
+#                 pose_kpt_color=np.ones((17, 3)) * 255,
+#                 skeleton=dataset_info_obj.skeleton,
+#                 pose_link_color=np.ones((len(dataset_info_obj.skeleton), 3)) * 255
+#             )
 
+#             writer.write(processed_img)
+#         writer.release()
+        
+            
     batch_data = collate(batch_data, samples_per_gpu=len(batch_data))
-    if next(model.parameters()).is_cuda:
-        device = next(model.parameters()).device
+    if trt:
+        device = "cuda:0"
         batch_data = scatter(batch_data, target_gpus=[device.index])[0]
     else:
-        batch_data = scatter(batch_data, target_gpus=[-1])[0]
+        if next(model.parameters()).is_cuda:
+            device = next(model.parameters()).device
+            batch_data = scatter(batch_data, target_gpus=[device.index])[0]
+        else:
+            batch_data = scatter(batch_data, target_gpus=[-1])[0]
+    if (trt):
+        poses_3d = []
+        for i in range(batch_data["input"].shape[0]):
+            with torch.no_grad():
+                trt_outputs = model({'input.1': batch_data["input"][i][None, :]})
+            output = trt_outputs['116']
+            poses_3d.append(output.cpu().detach().numpy()[0])
+        poses_3d = np.array(poses_3d)
+    else:
+        with torch.no_grad():
+            result = model(
+                input=batch_data['input'],
+                metas=batch_data['metas'],
+                return_loss=False)
 
-    with torch.no_grad():
-        result = model(
-            input=batch_data['input'],
-            metas=batch_data['metas'],
-            return_loss=False)
-
-    poses_3d = result['preds']
+        poses_3d = result['preds']
     if poses_3d.shape[-1] != 4:
         assert poses_3d.shape[-1] == 3
         dummy_score = np.ones(
@@ -346,7 +438,112 @@ def inference_pose_lifter_model(model,
 
     return pose_results
 
+def show_result(result,
+                img=None,
+                skeleton=None,
+                pose_kpt_color=None,
+                pose_link_color=None,
+                radius=8,
+                thickness=2,
+                vis_height=400,
+                num_instances=-1,
+                win_name='',
+                show=False,
+                wait_time=0,
+                out_file=None):
+    """Visualize 3D pose estimation results.
 
+    Args:
+        result (list[dict]): The pose estimation results containing:
+            - "keypoints_3d" ([K,4]): 3D keypoints
+            - "keypoints" ([K,3] or [T,K,3]): Optional for visualizing
+                2D inputs. If a sequence is given, only the last frame
+                will be used for visualization
+            - "bbox" ([4,] or [T,4]): Optional for visualizing 2D inputs
+            - "title" (str): title for the subplot
+        img (str or Tensor): Optional. The image to visualize 2D inputs on.
+        skeleton (list of [idx_i,idx_j]): Skeleton described by a list of
+            links, each is a pair of joint indices.
+        pose_kpt_color (np.array[Nx3]`): Color of N keypoints.
+            If None, do not draw keypoints.
+        pose_link_color (np.array[Mx3]): Color of M links.
+            If None, do not draw links.
+        radius (int): Radius of circles.
+        thickness (int): Thickness of lines.
+        vis_height (int): The image height of the visualization. The width
+            will be N*vis_height depending on the number of visualized
+            items.
+        win_name (str): The window name.
+        wait_time (int): Value of waitKey param.
+            Default: 0.
+        out_file (str or None): The filename to write the image.
+            Default: None.
+
+    Returns:
+        Tensor: Visualized img, only if not `show` or `out_file`.
+    """
+    if num_instances < 0:
+        assert len(result) > 0
+    result = sorted(result, key=lambda x: x.get('track_id', 1e4))
+
+    # draw image and input 2d poses
+    if img is not None:
+        img = mmcv.imread(img)
+
+        bbox_result = []
+        pose_input_2d = []
+        for res in result:
+            if 'bbox' in res:
+                bbox = np.array(res['bbox'])
+                if bbox.ndim != 1:
+                    assert bbox.ndim == 2
+                    bbox = bbox[-1]  # Get bbox from the last frame
+                bbox_result.append(bbox)
+            if 'keypoints' in res:
+                kpts = np.array(res['keypoints'])
+                if kpts.ndim != 2:
+                    assert kpts.ndim == 3
+                    kpts = kpts[-1]  # Get 2D keypoints from the last frame
+                pose_input_2d.append(kpts)
+
+        if len(bbox_result) > 0:
+            bboxes = np.vstack(bbox_result)
+            imshow_bboxes(
+                img,
+                bboxes,
+                colors='green',
+                thickness=thickness,
+                show=False)
+        if len(pose_input_2d) > 0:
+            imshow_keypoints(
+                img,
+                pose_input_2d,
+                skeleton,
+                kpt_score_thr=0.3,
+                pose_kpt_color=pose_kpt_color,
+                pose_link_color=pose_link_color,
+                radius=radius,
+                thickness=thickness)
+        img = mmcv.imrescale(img, scale=vis_height / img.shape[0])
+
+    img_vis = imshow_keypoints_3d(
+        result,
+        img,
+        skeleton,
+        pose_kpt_color,
+        pose_link_color,
+        vis_height,
+        num_instances=num_instances)
+
+    if show:
+        mmcv.visualization.imshow(img_vis, win_name, wait_time)
+
+    if out_file is not None:
+        mmcv.imwrite(img_vis, out_file)
+
+    return img_vis
+
+    
 def vis_3d_pose_result(model,
                        result,
                        img=None,
@@ -364,7 +561,6 @@ def vis_3d_pose_result(model,
         model (nn.Module): The loaded model.
         result (list[dict])
     """
-
     if dataset_info is not None:
         skeleton = dataset_info.skeleton
         pose_kpt_color = dataset_info.pose_kpt_color
@@ -383,8 +579,19 @@ def vis_3d_pose_result(model,
                             [255, 51, 51], [153, 255, 153], [102, 255, 102],
                             [51, 255, 51], [0, 255, 0], [0, 0, 255],
                             [255, 0, 0], [255, 255, 255]])
+        
+        if dataset == 'Body3DCombinedDataset':
+            skeleton = [[0, 1], [1, 3], [2, 4], [0, 5], [0, 6], [5, 6], [5, 7], [6, 8],
+                        [7, 9], [8, 10], [5, 11], [6, 12], [11, 13], [12, 14],
+                        [13, 15], [14, 16], [11, 17], [12, 17]]
 
-        if dataset == 'Body3DH36MDataset':
+            pose_kpt_color = palette[[
+                9, 0, 0, 0, 16, 16, 16, 9, 9, 9, 9, 16, 16, 16, 0, 0, 0, 0, 0
+            ]]
+            pose_link_color = palette[[
+                0, 0, 0, 16, 16, 16, 9, 9, 9, 9, 16, 16, 16, 0, 0, 0, 0, 0
+            ]]
+        elif dataset == 'Body3DH36MDataset' or dataset == 'Body3DH36MModifiedDataset':
             skeleton = [[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [0, 7],
                         [7, 8], [8, 9], [9, 10], [8, 11], [11, 12], [12, 13],
                         [8, 14], [14, 15], [15, 16]]
@@ -439,21 +646,22 @@ def vis_3d_pose_result(model,
         else:
             raise NotImplementedError
 
-    if hasattr(model, 'module'):
-        model = model.module
-
-    img = model.show_result(
-        result,
-        img,
-        skeleton,
-        radius=radius,
-        thickness=thickness,
-        pose_kpt_color=pose_kpt_color,
-        pose_link_color=pose_link_color,
-        num_instances=num_instances,
-        show=show,
-        out_file=out_file)
-
+    try:
+        img = show_result(
+            result,
+            img,
+            skeleton,
+            radius=radius,
+            thickness=thickness,
+            pose_kpt_color=pose_kpt_color,
+            pose_link_color=pose_link_color,
+            num_instances=num_instances,
+            show=show,
+            out_file=out_file)
+    except:
+        print(traceback.format_exc(), flush=True)
+        return img
+    
     return img
 
 
