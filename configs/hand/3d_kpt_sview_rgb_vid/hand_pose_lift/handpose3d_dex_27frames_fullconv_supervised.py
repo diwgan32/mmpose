@@ -1,6 +1,6 @@
-_base_ = ['../../../../_base_/datasets/dexycb.py']
+_base_ = ['../../../_base_/datasets/dexycb.py']
 log_level = 'INFO'
-#load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_27frames_fullconv_supervised-fe8fbba9_20210527.pth"
+load_from = None
 resume_from = None
 dist_params = dict(backend='nccl')
 workflow = [('train', 1)]
@@ -112,7 +112,7 @@ val_pipeline = [
     dict(type='PoseSequenceToTensor', item='input_2d'),
     dict(
         type='Collect',
-        keys=[('input_2d', 'input'), 'target'],
+        keys=[('input_2d', 'input'), 'target', 'target_weight'],
         meta_name='metas',
         meta_keys=['target_image_path', 'flip_pairs', 'root_position'])
 ]

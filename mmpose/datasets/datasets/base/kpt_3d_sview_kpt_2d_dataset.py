@@ -257,9 +257,10 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             writer.release()
 
         if (disp_pipeline_skel):
-            disp_name = results['target_image_path'].split("/")[1].split(".")[0]+"_skel.mp4"
+            splits = results['target_image_path'].split("/")
+            disp_name = f"{splits[0]}_{splits[1]}_{splits[2]}_{splits[3].split('_')[1]}"+"_skel.mp4"
             writer = cv2.VideoWriter(
-                filename=results['target_image_path'].split("/")[1].split(".")[0]+"_skel.mp4",
+                filename=disp_name,
                 fps=30,
                 fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
                 frameSize=(1000, 1000)
@@ -270,10 +271,9 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             for i in range(results["image_paths"].shape[0]):
                 a = ret["input"].cpu().detach().numpy()
                 input_2d_visible = results["input_2d_visible"][i]
-
+                
                 arr = a[:, i].reshape((self.num_joints, 2))
                 arr = np.hstack((arr, input_2d_visible))
-    
                 tail = results["image_paths"][i]
                 img = f"{path}/{tail}"
                 processed_img = image.show_keypoints(

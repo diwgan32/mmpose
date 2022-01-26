@@ -1,11 +1,17 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import os
+import os.path as osp
 import warnings
-from collections import OrderedDict
+import yaml
+import glob
+from dex_ycb_toolkit.factory import get_dataset
+from collections import OrderedDict, defaultdict
 
 import numpy as np
+import mmcv
 from mmcv import Config
 
+from mmpose.core.evaluation import keypoint_mpjpe
 from mmpose.datasets.builder import DATASETS
 from ..base import Kpt3dSviewKpt2dDataset
 
@@ -47,6 +53,9 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
         test_mode (bool): Store True when building test or
             validation dataset. Default: False.
     """
+    
+    SUPPORTED_JOINT_2D_SRC = {'gt', 'detection', 'pipeline'}
+    ALLOWED_METRICS = {'mpjpe', 'p-mpjpe', 'n-mpjpe'}
 
     def __init__(self,
                  ann_file,
@@ -67,6 +76,7 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
         self.protocol = 2
         self.root_idx = 0
         self.joint_num = 42
+        self._dex_ycb_dir = os.environ['DEX_YCB_DIR']
 
         super().__init__(
             ann_file,
@@ -75,7 +85,9 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
             pipeline,
             dataset_info=dataset_info,
             test_mode=test_mode)
-
+        
+        
+        
     def _transform_coords(self, joint_cam):
         # SPINE is average of thorax and pelvis
         head = (joint_cam[1] + joint_cam[2] + joint_cam[3] + joint_cam[4])/4.0
@@ -88,6 +100,20 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
         transformed_coords[self.H36M_THORAX_IDX] = thorax
         transformed_coords[self.H36M_HEAD_IDX] = head
         return transformed_coords
+    
+    def left_or_right(self, joint_2d, joint_3d, side, vis):
+        joint_2d_aug = np.zeros((42, 2))
+        joint_3d_aug = np.zeros((42, 3))
+        valid = np.zeros(42)
+        if (side == "right"):
+            joint_2d_aug[0:21, :] = joint_2d
+            joint_3d_aug[0:21, :] = joint_3d
+            valid[:21] = vis
+        if (side == "left"):
+            joint_2d_aug[21:42, :] = joint_2d
+            joint_3d_aug[21:42, :] = joint_3d
+            valid[21:42] = vis
+        return joint_2d_aug, joint_3d_aug, valid
 
     def load_config(self, data_cfg):
         super().load_config(data_cfg)
@@ -105,50 +131,26 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
             assert 'camera_param_file' in data_cfg
             self.camera_param = self._load_camera_param(
                 data_cfg['camera_param_file'])
-
-        # h36m specific annotation info
-        ann_info = {}
-        ann_info['use_different_joint_weights'] = False
-        # action filter
+        
         actions = data_cfg.get('actions', '_all_')
         self.actions = set(
             actions if isinstance(actions, (list, tuple)) else [actions])
-
-        # subject filter
+        
         subjects = data_cfg.get('subjects', '_all_')
         self.subjects = set(
             subjects if isinstance(subjects, (list, tuple)) else [subjects])
-
-        self.ann_info.update(ann_info)
-
+        self.subjects = subjects
     @staticmethod
-    def process_bbox(bbox, width, height):
-        # sanitize bboxes
-        x, y, w, h = bbox
-        x1 = np.max((0, x))
-        y1 = np.max((0, y))
-        x2 = np.min((width - 1, x1 + np.max((0, w - 1))))
-        y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
-        if w*h > 0 and x2 >= x1 and y2 >= y1:
-            bbox = np.array([x1, y1, x2-x1, y2-y1])
-        else:
-            return None
+    def get_bbox(uv):
+        x = min(uv[:, 0]) - 10
+        y = min(uv[:, 1]) - 10
 
-        # aspect ratio preserving bbox
-        w = bbox[2]
-        h = bbox[3]
-        c_x = bbox[0] + w/2.
-        c_y = bbox[1] + h/2.
-        aspect_ratio = 1
-        if w > aspect_ratio * h:
-            h = w / aspect_ratio
-        elif w < aspect_ratio * h:
-            w = h * aspect_ratio
-        bbox[2] = w*1.25
-        bbox[3] = h*1.25
-        bbox[0] = c_x - bbox[2]/2.
-        bbox[1] = c_y - bbox[3]/2.
-        return bbox
+        x_max = min(max(uv[:, 0]) + 10, 256)
+        y_max = min(max(uv[:, 1]) + 10, 256)
+
+        return [
+            float(max(0, x)), float(max(0, y)), float(x_max - x), float(y_max - y)
+        ]
 
     def _get_subsampling_ratio(self):
         return 6
@@ -160,7 +162,52 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
         z = cam_coord[:, 2]
         img_coord = np.concatenate((x[:,None], y[:,None], z[:,None]),1)
         return img_coord
+    
+    def _get_partial_annotations(self, name):
+        dataset = get_dataset(name)
+        data_info = {
+            'imgnames': [],
+            'joints_3d': [],
+            'joints_2d': [],
+            'scales': [],
+            'centers': [],
+        }
+        count = 0
+        sampling_ratio = self._get_subsampling_ratio()
+        flag = True
+        for idx in range(len(dataset)):
+            sample = dataset[idx]
+            label = np.load(sample['label_file'])
+            fx = sample['intrinsics']['fx']
+            fy = sample['intrinsics']['fy']
+            cx = sample['intrinsics']['ppx']
+            cy = sample['intrinsics']['ppy']
 
+            K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
+            joint_3d = label["joint_3d"][0]
+            joint_2d = label["joint_2d"][0]
+            # Just extract the end part of the filename, not including root
+            file_loc = sample['color_file'].split(self.ann_file)[1]
+            joint_vis = np.where(
+                np.all(joint_3d == -1, axis=1), 0, 1
+            )
+            subj, action, camera = DexYCBDataset._parse_dex_imgname(file_loc)
+            joint_2d, joint_3d, joint_vis = self.left_or_right(joint_2d, joint_3d, sample["mano_side"], joint_vis)
+            
+            data_info["imgnames"].append(file_loc)
+            joint_vis = np.expand_dims(joint_vis, axis=1)
+            data_info["joints_3d"].append(np.hstack((joint_3d, joint_vis)))
+            data_info["joints_2d"].append(np.hstack((joint_2d[:, :2], joint_vis)))
+            bbox = DexYCBDataset.get_bbox(joint_2d)
+            data_info["scales"].append(max(bbox[2], bbox[3]))
+            center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
+            if (sample["mano_side"] == "right"):
+                data_info["centers"].append(joint_2d[0, :2])
+            else:
+                data_info["centers"].append(joint_2d[21, :2])
+            if (idx % 10 == 0):
+                print(f"Idx: {idx}, len: {len(dataset)}, name: {name}")
+        return data_info
     def load_annotations(self):
         """
             Reads AIST annotations, returns them in the following
@@ -175,9 +222,11 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
             }
         """
         # get 2D joints
-
-        files = glob.glob(f"{self.ann_file}/aist_training_*.json")
-
+        if (self.test_mode):
+            names = ['s0_test']
+        else:
+            names = ['s0_train', 's1_train', 's2_train', 's3_train']
+        
         data_info = {
             'imgnames': [],
             'joints_3d': [],
@@ -185,75 +234,36 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
             'scales': [],
             'centers': [],
         }
-        sequences_actually_read = []
-        count = 0
-        sampling_ratio = self._get_subsampling_ratio()
-        flag = True
-        for file_ in files:
-            if (random.randint(1, 100) >= 50):
-                continue
-            sequences_actually_read.append(file_)
-            db = COCO(file_)
-            for aid in db.anns.keys():
-                ann = db.anns[aid]
-                if ("is_train" in db.imgs[ann['image_id']] and 
-                    db.imgs[ann['image_id']]["is_train"]):
-                    continue
-                img = db.loadImgs(ann['image_id'])[0]
-                width, height = img['width'], img['height']
-
-                bbox = Body3DAISTDataset.process_bbox(np.array(ann['bbox'])*3, 1920, 1080)
-                if count % sampling_ratio != 0:
-                    count += 1
-                    continue
-
-                if bbox is None: continue
-
-                # joints and vis
-                f = np.array(db.imgs[ann['image_id']]["camera_param"]['focal'])
-                c = np.array(db.imgs[ann['image_id']]["camera_param"]['princpt'])
-
-                joint_cam = np.array(ann['joint_cam'])
-                joint_cam = self._transform_coords(joint_cam)
-                joint_img = Body3DAISTDataset._cam2pixel(joint_cam, f, c)
-                joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
-                joint_vis = np.ones((self.joint_num,1))
-                data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
-                
-                data_info["joints_3d"].append(np.hstack((joint_cam, joint_vis)))
-                data_info["joints_2d"].append(np.hstack((joint_img[:, :2], joint_vis)))
-
-                data_info["scales"].append(max(bbox[2], bbox[3]))
-                center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
-                data_info["centers"].append(joint_img[0, :2])
-                count += 1
-            if (flag):
-                break
-        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
+        for name in names:
+            temp_data_info = self._get_partial_annotations(name)
+            data_info['imgnames'] += temp_data_info['imgnames']
+            data_info['joints_3d'] += temp_data_info['joints_3d']
+            data_info['joints_2d'] += temp_data_info['joints_2d']
+            data_info['scales'] += temp_data_info['scales']
+            data_info['centers'] += temp_data_info['centers']
+            
+        
+        
+        data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)
         data_info["joints_2d"] = np.array(data_info["joints_2d"]).astype(np.float32)
         data_info["scales"] = np.array(data_info["scales"]).astype(np.float32)
         data_info["centers"] = np.array(data_info["centers"]).astype(np.float32)
         data_info["imgnames"] = np.array(data_info["imgnames"])
-        f = open("sequences_read_aist.txt", "w")
-        for seq in sequences_actually_read:
-            f.write(seq + "\n")
-        f.close()
         return data_info
 
     @staticmethod
-    def _parse_aist_imgname(imgname):
+    def _parse_dex_imgname(imgname):
         """Parse imgname to get information of subject, action and camera.
 
-        See here for name format: https://aistdancedb.ongaaccel.jp/data_formats/
+        Name format: 
+        <subject_id>/<seq_id>/<camera>/color_<framenum>
         """
-        video_name = imgname.split("/")[0]
-        parts = video_name.split("_")
-        subj = parts[3]
+        splits = imgname.split("/")
+        subj = splits[0]
+        camera = splits[2]
+        seq_id = splits[1]
 
-        # Action is dance genre, situation, music id, choreography id
-        action = f"{parts[0]}_{parts[1]}_{parts[4]}_{parts[5]}"
-        camera = parts[2]
-        return subj, action, camera
+        return subj, seq_id, camera
 
     def build_sample_indices(self):
         """Split original videos into sequences and build frame indices.
@@ -264,9 +274,9 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
         # Group frames into videos. Assume that self.data_info is
         # chronological.
         video_frames = defaultdict(list)
-        print(f"AIST len: {len(self.data_info['imgnames'])}")
+        print(f"DEX len: {len(self.data_info['imgnames'])}")
         for idx, imgname in enumerate(self.data_info['imgnames']):
-            subj, action, camera = self._parse_aist_imgname(imgname)
+            subj, action, camera = DexYCBDataset._parse_dex_imgname(imgname)
 
             # TODO: Is _all_ going to be in self.actions and self.subjects?
             if '_all_' not in self.actions and action not in self.actions:
@@ -394,8 +404,8 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
             preds.append(pred)
             gts.append(gt)
             np.set_printoptions(suppress=True)
-            masks.append(np.ones((17, 1)))
-            action = self._parse_aist_imgname(
+            masks.append(np.ones((42, 1)))
+            action = self._parse_dex_imgname(
                 self.data_info['imgnames'][target_id])[1]
             action_category = action.split('_')[0]
             action_category_indices[action_category].append(idx)
@@ -424,70 +434,78 @@ class DexYCBDataset(Kpt3dSviewKpt2dDataset):
             name_value_tuples.append((f'{err_name}_{action_category}', _error))
 
         return name_value_tuples
-
-    @staticmethod
-    def rodrigues_vec_to_rotation_mat(rodrigues_vec):
-        theta = np.linalg.norm(rodrigues_vec)
-        if theta < sys.float_info.epsilon:              
-            rotation_mat = np.eye(3, dtype=float)
-        else:
-            r = rodrigues_vec / theta
-            I = np.eye(3, dtype=float)
-            r_rT = np.array([
-                [r[0]*r[0], r[0]*r[1], r[0]*r[2]],
-                [r[1]*r[0], r[1]*r[1], r[1]*r[2]],
-                [r[2]*r[0], r[2]*r[1], r[2]*r[2]]
-            ])
-            r_cross = np.array([
-                [0, -r[2], r[1]],
-                [r[2], 0, -r[0]],
-                [-r[1], r[0], 0]
-            ])
-            rotation_mat = math.cos(theta) * I + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
-        return rotation_mat 
-
+    
+    def _load_K(self, x):
+        return np.array(
+            [[x['fx'], 0.0, x['ppx']], [0.0, x['fy'], x['ppy']], [0.0, 0.0, 1.0]]
+        )
+            
     def _load_camera_param(self, camera_param_file):
+        subject_names = ["20200709-subject-01", "20200813-subject-02", "20200820-subject-03", 
+                        "20200903-subject-04", "20200908-subject-05", "20200918-subject-06",
+                        "20200928-subject-07", "20201002-subject-08", "20201015-subject-09",
+                        "20201022-subject-10"]
+        color_prefix = "color_"
+        depth_prefix = "aligned_depth_to_color_"
+        label_prefix = "labels_"
         camera_params = {}
-        mapping_f = open(f"{camera_param_file}/mapping.txt")
-        video_to_camera = {}
-        data = mapping_f.readlines()
-        for line in data:
-            line_str = line.strip()
-            video_to_camera[line_str.split(" ")[0]] = line_str.split(" ")[1]
+        for subj in subject_names:
+            all_names = glob.glob(f"{self._dex_ycb_dir}/{subj}/*/")
+            for name in all_names:
+                video_name = name.split("/")[-2]
+                meta_file = self._dex_ycb_dir + '/' + subj + '/' + video_name + "/meta.yml"
+                with open(meta_file, 'r') as f:
+                    meta = yaml.load(f, Loader=yaml.FullLoader)
+                serials = meta['serials']
+                h = 480
+                w = 640
+                num_cameras = len(serials)
+                data_dir = [
+                    self._dex_ycb_dir + '/' + subj + '/' + video_name + '/' + s for s in serials
+                ]
 
-        mapping_f.close()
+                num_frames = meta['num_frames']
+                ycb_ids = meta['ycb_ids']
+                mano_sides = meta['mano_sides']
 
-        for video_name in list(video_to_camera.keys()):
-            with open(osp.join(camera_param_file, f"{video_to_camera[video_name]}.json"),'r') as f:
-                data = json.load(f)
+                K = {}
+                for s in serials:
+                    intr_file = self._dex_ycb_dir + "/calibration/intrinsics/" + s + '_' + str(w) + 'x' + str(h) + ".yml"
+                    with open(intr_file, 'r') as f:
+                        intr = yaml.load(f, Loader=yaml.FullLoader)
+                        K_single = self._load_K(intr['color'])
+                        K[s] = K_single
 
-                parts = video_name.split("_")
-                subj = parts[3]
 
-                # Action is dance genre, situation, music id, choreography id
-                action = f"{parts[0]}_{parts[1]}_{parts[4]}_{parts[5]}"
-                for camera_obj in data:
-                    matrix = camera_obj["matrix"]
-                    R = Body3DAISTDataset.rodrigues_vec_to_rotation_mat(camera_obj["rotation"])
-                    camera_str = camera_obj["name"]
-                    # Convert to m
-                    #input("? ")
-                    T = np.array(camera_obj["translation"])/100.0
-                    c = np.array([matrix[0][2], matrix[1][2]])
-                    f = np.array([matrix[0][0], matrix[1][1]])
-                    camera_params[(subj, action, camera_str)] = {
+                # Load extrinsics.
+                extr_file = self._dex_ycb_dir + "/calibration/extrinsics_" + meta[
+                    'extrinsics'] + "/extrinsics.yml"
+                with open(extr_file, 'r') as f:
+                      extr = yaml.load(f, Loader=yaml.FullLoader)
+                T = extr['extrinsics']
+                T = {
+                    s: np.array(T[s], dtype=np.float32).reshape((3, 4)) for s in T
+                }
+                for s in serials:
+                    R = T[s][:, :3]
+                    t = T[s][:, 3]
+                    K_single = K[s]
+                    camera_params[(subj, video_name, s)] = {
                         "R": R,
                         "T": T,
-                        "c": c,
-                        "f": f,
-                        'w': 1920,
-                        'h': 1080
+                        "c": np.array([K_single[0][2], K_single[1][2]]),
+                        "f": np.array([K_single[0][0], K_single[0][1]]),
+                        'w': w,
+                        'h': h
                     }
-
+                    
+                    
+                    
+                
         return camera_params
-
+    
     def get_camera_param(self, imgname):
         """Get camera parameters of a frame by its image name."""
         assert hasattr(self, 'camera_param')
-        subj, action, camera = self._parse_aist_imgname(imgname)
+        subj, action, camera = self._parse_dex_imgname(imgname)
         return self.camera_param[(subj, action, camera)]
