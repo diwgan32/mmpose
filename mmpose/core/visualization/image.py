@@ -167,8 +167,7 @@ def imshow_keypoints(img,
     img_h, img_w, _ = img.shape
  #   print("Saving...")
     for kpts in pose_result:
-        kpts = np.array(kpts, copy=False)/3.0
-#        print(kpts)
+        kpts = np.array(kpts, copy=False)
         # draw each point on image
         if pose_kpt_color is not None:
             assert len(pose_kpt_color) == len(kpts)
