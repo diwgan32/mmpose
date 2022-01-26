@@ -21,7 +21,7 @@ from .datasets import (  # isort:skip
     TopDownMhpDataset, TopDownMpiiDataset, TopDownMpiiTrbDataset,
     TopDownOCHumanDataset, TopDownOneHand10KDataset, TopDownPanopticDataset,
     TopDownPoseTrack18Dataset, TopDownPoseTrack18VideoDataset, Body3DPanopticDataset,
-    Body3DAISTCOCODataset, Body3DH36MCOCODataset)
+    Body3DAISTCOCODataset, Body3DH36MCOCODataset, DexYCBDataset)
 
 __all__ = [
     'TopDownCocoDataset', 'BottomUpCocoDataset', 'BottomUpMhpDataset',
@@ -42,6 +42,6 @@ __all__ = [
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
     'build_dataloader', 'build_dataset', 'Compose', 'DistributedSampler',
     'DATASETS', 'PIPELINES', 'DatasetInfo', "Body3DPanopticDataset",
-    'Body3DCombinedDataset', 'TopDownPoseTrack18VideoDataset', "Body3DAISTCOCODataset",
-    "Body3DH36MCOCODataset"
+    'Body3DCombinedDataset', 'TopDownPoseTrack18VideoDataset', 'Body3DAISTCOCODataset',
+    'Body3DH36MCOCODataset', 'DexYCBDataset'
 ]
