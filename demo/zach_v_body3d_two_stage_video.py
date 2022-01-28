@@ -321,28 +321,28 @@ def process_video(args):
             pose_lift_results_vis.append(res)
 
         # Visualization
-        if num_instances < 0:
-            num_instances = len(pose_lift_results_vis)
-        img_vis = vis_3d_pose_result(
-            pose_lift_model,
-            result=pose_lift_results_vis,
-            img=video[i],
-            out_file=None,
-            radius=args.radius,
-            thickness=args.thickness,
-            num_instances=num_instances,
-        dataset=pose_lift_dataset)
+#         if num_instances < 0:
+#             num_instances = len(pose_lift_results_vis)
+#         img_vis = vis_3d_pose_result(
+#             pose_lift_model,
+#             result=pose_lift_results_vis,
+#             img=video[i],
+#             out_file=None,
+#             radius=args.radius,
+#             thickness=args.thickness,
+#             num_instances=num_instances,
+#         dataset=pose_lift_dataset)
 
-        if save_out_video:
-            if writer is None:
-                writer = cv2.VideoWriter(
-                    osp.join(args.out_video_root,
-                             f'tumeke_testing/vis_{osp.basename(args.file_path)}'), fourcc,
-                    fps, (img_vis.shape[1], img_vis.shape[0]))
-            writer.write(img_vis)
+#         if save_out_video:
+#             if writer is None:
+#                 writer = cv2.VideoWriter(
+#                     osp.join(args.out_video_root,
+#                              f'tumeke_testing/vis_{osp.basename(args.file_path)}'), fourcc,
+#                     fps, (img_vis.shape[1], img_vis.shape[0]))
+#             writer.write(img_vis)
 
-    if save_out_video:
-        writer.release()
+#     if save_out_video:
+#         writer.release()
     
     print(f'Video "{args.video_name}" processed.')
 
