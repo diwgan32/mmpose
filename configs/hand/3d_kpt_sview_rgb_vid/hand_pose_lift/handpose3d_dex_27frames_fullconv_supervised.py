@@ -112,7 +112,7 @@ val_pipeline = [
     dict(type='PoseSequenceToTensor', item='input_2d'),
     dict(
         type='Collect',
-        keys=[('input_2d', 'input'), 'target', 'target_weight'],
+        keys=[('input_2d', 'input'), 'target'],
         meta_name='metas',
         meta_keys=['target_image_path', 'flip_pairs', 'root_position'])
 ]
