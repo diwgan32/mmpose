@@ -229,7 +229,7 @@ def process_video(args):
             if (idx % 100 == 0): print(f"Idx: {idx}")
             pose_det_results_list.append(copy.deepcopy(pose_det_results))
         # Pickle keypoints
-        with open(f'work_dirs/tumeke_testing/pickle_files/{args.video_name}.p', 'wb') as outfile:
+        with open(f'work_dirs/tumeke_testing/pickle_files_wholebody/{args.video_name}.p', 'wb') as outfile:
             pickle.dump(pose_det_results_list, outfile)
     else:
         with open(args.detections_2d, 'rb') as f:
