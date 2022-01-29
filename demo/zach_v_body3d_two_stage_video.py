@@ -4,13 +4,15 @@ import os
 import os.path as osp
 from argparse import ArgumentParser
 
+import time
 import cv2
 import mmcv
 import numpy as np
 import json
 import pickle
-import time
+import matplotlib.pyplot as plt
 
+from mmpose.core.visualization import imshow_bboxes, imshow_keypoints
 from mmpose.apis import (extract_pose_sequence, get_track_id,
                          inference_pose_lifter_model,
                          inference_top_down_pose_model, init_pose_model, init_pose_model_trt,
@@ -23,12 +25,12 @@ try:
     has_mmdet = True
 except (ImportError, ModuleNotFoundError):
     has_mmdet = False
-
+def handpose_keypoint_convert(hands_2d_l, hands_2d_r):
+    return np.vstack((hands_2d_l, hands_2d_r))
 
 def covert_keypoint_definition(keypoints, pose_det_dataset, pose_lift_dataset):
     """Convert pose det dataset keypoints definition to pose lifter dataset
     keypoints definition.
-
     Args:
         keypoints (ndarray[K, 2 or 3]): 2D keypoints to be transformed.
         pose_det_dataset, (str): Name of the dataset for 2D pose detector.
@@ -37,8 +39,8 @@ def covert_keypoint_definition(keypoints, pose_det_dataset, pose_lift_dataset):
     if pose_det_dataset == 'TopDownH36MDataset' and \
     (pose_lift_dataset == 'Body3DH36MDataset' or pose_lift_dataset == 'Body3DH36MModifiedDataset'):
         return keypoints
-    elif pose_det_dataset == 'TopDownCocoDataset' and \
-            (pose_lift_dataset == 'Body3DH36MDataset' or pose_lift_dataset == 'Body3DH36MModifiedDataset'):
+    elif ((pose_det_dataset == 'TopDownCocoDataset') and \
+            (pose_lift_dataset == 'Body3DH36MDataset' or pose_lift_dataset == 'Body3DH36MModifiedDataset')):
         keypoints_new = np.zeros((17, keypoints.shape[1]))
         # pelvis is in the middle of l_hip and r_hip
         keypoints_new[0] = (keypoints[11] + keypoints[12]) / 2
@@ -52,12 +54,47 @@ def covert_keypoint_definition(keypoints, pose_det_dataset, pose_lift_dataset):
         keypoints_new[[1, 2, 3, 4, 5, 6, 9, 11, 12, 13, 14, 15, 16]] = \
             keypoints[[12, 14, 16, 11, 13, 15, 0, 5, 7, 9, 6, 8, 10]]
         return keypoints_new
+    elif (pose_det_dataset == 'TopDownCocoWholeBodyDataset' and \
+          pose_lift_dataset == 'Body3DCombinedDataset'):
+        keypoints_new = np.zeros((17, keypoints.shape[1]))
+        # pelvis is in the middle of l_hip and r_hip
+        keypoints_new[0] = (keypoints[11] + keypoints[12]) / 2
+        # thorax is in the middle of l_shoulder and r_shoulder
+        keypoints_new[8] = (keypoints[5] + keypoints[6]) / 2
+        # head is in the middle of l_eye and r_eye
+        keypoints_new[10] = (keypoints[1] + keypoints[2]) / 2
+        # spine is in the middle of thorax and pelvis
+        keypoints_new[7] = (keypoints_new[0] + keypoints_new[8]) / 2
+        # rearrange other keypoints
+        keypoints_new[[1, 2, 3, 4, 5, 6, 9, 11, 12, 13, 14, 15, 16]] = \
+            keypoints[[12, 14, 16, 11, 13, 15, 0, 5, 7, 9, 6, 8, 10]]
+        return keypoints_new
+    elif (pose_det_dataset == 'TopDownCocoDataset') and \
+            (pose_lift_dataset == 'Body3DCombinedDataset'):
+        
+        keypoints_new = np.zeros((19, keypoints.shape[1]))
+        # pelvis is in the middle of l_hip and r_hip
+        keypoints_new[17] = (keypoints[11] + keypoints[12]) / 2
+        # thorax is in the middle of l_shoulder and r_shoulder
+        keypoints_new[18] = (keypoints[5] + keypoints[6]) / 2
+        
+        keypoints_new[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]] = \
+            keypoints[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]]
+        return keypoints_new
     else:
         raise NotImplementedError
 
+def create_writer(frame, args, fps):
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    writer = cv2.VideoWriter(
+        osp.join(args.out_video_root, f'tumeke_testing/vis_{osp.basename(args.file_path)}_hands'),
+        fourcc,
+        fps,
+        (frame.shape[1], frame.shape[0])
+    )
+    return writer
 
-def process_video(args):
-
+def process_video_hands(args):
     assert has_mmdet, 'Please install mmdet to run the demo.'
 
 #     args = parser.parse_args()
@@ -173,12 +210,14 @@ def process_video(args):
             keypoints = res['keypoints']
             res['keypoints'] = covert_keypoint_definition(
                 keypoints, pose_det_dataset, pose_lift_dataset)
-
     # load temporal padding config from model.data_cfg
     if hasattr(pose_lift_model.cfg, 'test_data_cfg'):
         data_cfg = pose_lift_model.cfg.test_data_cfg
     else:
         data_cfg = pose_lift_model.cfg.data_cfg
+    
+    if (isinstance(data_cfg, list)):
+        data_cfg = data_cfg[0]
 
     num_instances = args.num_instances
     for i, pose_det_results in enumerate(

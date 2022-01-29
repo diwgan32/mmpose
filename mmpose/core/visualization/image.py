@@ -114,9 +114,7 @@ def show_keypoints(pose_result,
     """Draw keypoints and links on a blank canvas.
 
     Args:
-            pose_result (list[kpts]): The poses to draw. Each element kpts is
-                a set of K keypoints as an Kx3 numpy.ndarray, where each
-                keypoint is represented as x, y, score.
+            pose_result (kpts): Single pose to draw.
             canvas_size (int, required): The square size to draw the skeleton on
             kpt_score_thr (float, optional): Minimum score of keypoints
                 to be shown. Default: 0.3.
@@ -131,7 +129,7 @@ def show_keypoints(pose_result,
     pose_result += 1
     pose_result *= (canvas_size/2)
 #    pose_result[:, 1] = canvas_size - pose_result[:, 1]
-    pose_result = np.expand_dims(np.hstack((pose_result, np.ones((17, 1)))), axis=0)
+    pose_result = np.expand_dims(np.hstack((pose_result, np.ones((pose_result.shape[0], 1)))), axis=0)
     return imshow_keypoints(img, pose_result, skeleton=skeleton, kpt_score_thr=kpt_score_thr,
         pose_kpt_color=pose_kpt_color, pose_link_color=pose_link_color, radius=radius,
         thickness=thickness, show_keypoint_weight=show_keypoint_weight)
@@ -167,8 +165,7 @@ def imshow_keypoints(img,
     img_h, img_w, _ = img.shape
  #   print("Saving...")
     for kpts in pose_result:
-        kpts = np.array(kpts, copy=False)/3.0
-#        print(kpts)
+        kpts = np.array(kpts, copy=False)
         # draw each point on image
         if pose_kpt_color is not None:
             assert len(pose_kpt_color) == len(kpts)

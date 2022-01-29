@@ -398,7 +398,10 @@ class Body3DH36MModifiedDataset(Kpt3dSviewKpt2dDataset):
             image_paths = output['target_image_paths']
             batch_size = len(image_paths)
             for i in range(batch_size):
+                if (image_paths[i] not in self.name2id):
+                    continue
                 target_id = self.name2id[image_paths[i]]
+                
                 kpts.append({
                     'keypoints': preds[i],
                     'target_id': target_id,

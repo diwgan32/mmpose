@@ -5,7 +5,8 @@ from .animal import (AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
                      AnimalLocustDataset, AnimalMacaqueDataset,
                      AnimalPoseDataset, AnimalZebraDataset)
 from .body3d import (Body3DH36MDataset, Body3DH36MModifiedDataset, Body3DAISTDataset,
-                    Body3DPanopticDataset)
+                    Body3DPanopticDataset, Body3DCombinedDataset, Body3DAISTCOCODataset,
+                    Body3DH36MCOCODataset)
 from .bottom_up import (BottomUpAicDataset, BottomUpCocoDataset,
                         BottomUpCocoWholeBodyDataset, BottomUpCrowdPoseDataset,
                         BottomUpMhpDataset)
@@ -14,7 +15,7 @@ from .face import (Face300WDataset, FaceAFLWDataset, FaceCocoWholeBodyDataset,
 from .fashion import DeepFashionDataset
 from .hand import (FreiHandDataset, HandCocoWholeBodyDataset,
                    InterHand2DDataset, InterHand3DDataset, OneHand10KDataset,
-                   PanopticDataset)
+                   PanopticDataset, DexYCBDataset)
 from .mesh import (MeshAdversarialDataset, MeshH36MDataset, MeshMixDataset,
                    MoshDataset)
 from .top_down import (TopDownAicDataset, TopDownCocoDataset,
@@ -24,6 +25,7 @@ from .top_down import (TopDownAicDataset, TopDownCocoDataset,
                        TopDownMpiiDataset, TopDownMpiiTrbDataset,
                        TopDownOCHumanDataset, TopDownPoseTrack18Dataset,
                        TopDownPoseTrack18VideoDataset)
+
 
 __all__ = [
     'TopDownCocoDataset', 'BottomUpCocoDataset', 'BottomUpMhpDataset',
@@ -42,5 +44,7 @@ __all__ = [
     'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
-    'TopDownHalpeDataset', 'Body3DPanopticDataset', 'TopDownPoseTrack18VideoDataset'
+    'TopDownHalpeDataset', 'Body3DPanopticDataset', 'Body3DCombinedDataset', 
+    'TopDownPoseTrack18VideoDataset', "Body3DAISTCOCODataset",
+    'Body3DH36MCOCODataset', 'DexYCBDataset'
 ]

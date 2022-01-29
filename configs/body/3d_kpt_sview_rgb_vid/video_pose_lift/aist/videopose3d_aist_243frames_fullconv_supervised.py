@@ -1,6 +1,6 @@
 _base_ = ['../../../../_base_/datasets/h36m.py']
 log_level = 'INFO'
-load_from = "https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_243frames_fullconv_supervised-880bea25_20210527.pth"
+load_from = "/home/fsuser/PoseEstimation/mmpose/tools/work_dirs/videopose3d_h36m_243frames_fullconv_supervised/epoch_160.pth"
 resume_from = None
 dist_params = dict(backend='nccl')
 workflow = [('train', 1)]
@@ -11,7 +11,7 @@ evaluation = dict(
 # optimizer settings
 optimizer = dict(
     type='Adam',
-    lr=1e-5,
+    lr=1e-4,
 )
 optimizer_config = dict(grad_clip=None)
 # learning policy
@@ -94,7 +94,7 @@ train_pipeline = [
     dict(type='PoseSequenceToTensor', item='input_2d'),
     dict(
         type='Collect',
-        keys=[('input_2d', 'input'), 'target'],
+        keys=[('input_2d', 'input'), 'target_weight', 'target'],
         meta_name='metas',
         meta_keys=['target_image_path', 'flip_pairs', 'root_position'])
 ]
@@ -119,10 +119,10 @@ val_pipeline = [
 test_pipeline = val_pipeline
 
 data = dict(
-    samples_per_gpu=128,
-    workers_per_gpu=2,
-    val_dataloader=dict(samples_per_gpu=128),
-    test_dataloader=dict(samples_per_gpu=128),
+    samples_per_gpu=256,
+    workers_per_gpu=4,
+    val_dataloader=dict(samples_per_gpu=256),
+    test_dataloader=dict(samples_per_gpu=256),
     train=dict(
         type='Body3DAISTDataset',
         ann_file=f'{data_root}/',

@@ -216,16 +216,16 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         sequences_actually_read = []
         count = 0
         sampling_ratio = self._get_subsampling_ratio()
-        flag = False
+        flag = True
         for file_ in files:
-            if (random.randint(1, 100) >= 25):
+            if (random.randint(1, 100) >= 50):
                 continue
             sequences_actually_read.append(file_)
             db = COCO(file_)
             for aid in db.anns.keys():
                 ann = db.anns[aid]
                 if ("is_train" in db.imgs[ann['image_id']] and 
-                        not db.imgs[ann['image_id']]["is_train"]):
+                    db.imgs[ann['image_id']]["is_train"]):
                     continue
                 img = db.loadImgs(ann['image_id'])[0]
                 width, height = img['width'], img['height']
@@ -246,18 +246,15 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
                 joint_img = Body3DAISTDataset._cam2pixel(joint_cam, f, c)
                 joint_img[:,2] = joint_img[:,2] - joint_cam[self.root_idx,2]
                 joint_vis = np.ones((self.joint_num,1))
-
                 data_info["imgnames"].append(db.imgs[ann['image_id']]['file_name'])
-                data_info["joints_3d"].append(joint_cam)
-                data_info["joints_2d"].append(joint_img[:, :2])
                 
+                data_info["joints_3d"].append(np.hstack((joint_cam, joint_vis)))
+                data_info["joints_2d"].append(np.hstack((joint_img[:, :2], joint_vis)))
+
                 data_info["scales"].append(max(bbox[2], bbox[3]))
                 center = [bbox[0] + bbox[2]/2.0, bbox[1] + bbox[3]/2.0]
                 data_info["centers"].append(joint_img[0, :2])
                 count += 1
-                if (count >= 100000):
-                    flag = True
-                    break
             if (flag):
                 break
         data_info["joints_3d"] = np.array(data_info["joints_3d"]).astype(np.float32)/100
@@ -295,6 +292,7 @@ class Body3DAISTDataset(Kpt3dSviewKpt2dDataset):
         # Group frames into videos. Assume that self.data_info is
         # chronological.
         video_frames = defaultdict(list)
+        print(f"AIST len: {len(self.data_info['imgnames'])}")
         for idx, imgname in enumerate(self.data_info['imgnames']):
             subj, action, camera = self._parse_aist_imgname(imgname)
 
