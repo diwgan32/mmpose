@@ -68,7 +68,10 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
 
         self.load_config(self.data_cfg)
 
-        self.ann_info['num_joints'] = data_cfg['num_joints']
+        if (isinstance(data_cfg, list)):
+            self.ann_info['num_joints'] = data_cfg[0]['num_joints']
+        else:
+            self.ann_info['num_joints'] = data_cfg['num_joints']
         assert self.ann_info['num_joints'] == dataset_info.keypoint_num
         self.ann_info['flip_pairs'] = dataset_info.flip_pairs
         self.ann_info['upper_body_ids'] = dataset_info.upper_body_ids
@@ -186,10 +189,10 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             _scales = np.stack([_scales, _scales], axis=1)
 
         target_idx = -1 if self.causal else int(self.seq_len) // 2
-
         results = {
             'input_2d': _joints_2d[:, :, :2],
             'input_2d_visible': _joints_2d[:, :, -1:],
+            'target_weight': _joints_2d[target_idx, :, -1:], 
             'input_3d': _joints_3d[:, :, :3],
             'input_3d_visible': _joints_3d[:, :, -1:],
             'target': _joints_3d[target_idx, :, :3],
@@ -244,8 +247,8 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
                 img = f"{path}/{tail}"
                 processed_img = image.imshow_keypoints(
                     img,
-                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0),
-                    pose_kpt_color=np.ones((17, 3)) * 255,
+                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((self.num_joints, 1)))), axis=0),
+                    pose_kpt_color=np.ones((self.num_joints, 3)) * 255,
                     skeleton=self.ann_info['skeleton'],
                     pose_link_color=np.zeros((len(self.ann_info["skeleton"]), 3))
                 )
@@ -257,7 +260,7 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             print("PROCESSING")
             disp_name = results['target_image_path'].split("/")[1].split(".")[0]+"_skel.mp4"
             writer = cv2.VideoWriter(
-                filename=results['target_image_path'].split("/")[1].split(".")[0]+"_skel.mp4",
+                filename=disp_name,
                 fps=30,
                 fourcc=cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
                 frameSize=(1000, 1000)
@@ -267,13 +270,16 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             ret = self.pipeline(results)
             for i in range(results["image_paths"].shape[0]):
                 a = ret["input"].cpu().detach().numpy()
-                arr = a[:, i].reshape((17, 2))
+                input_2d_visible = results["input_2d_visible"][i]
+                
+                arr = a[:, i].reshape((self.num_joints, 2))
+                arr = np.hstack((arr, input_2d_visible))
                 tail = results["image_paths"][i]
                 img = f"{path}/{tail}"
                 processed_img = image.show_keypoints(
                     arr,
                     1000,
-                    pose_kpt_color=np.ones((17, 3)) * 255,
+                    pose_kpt_color=np.ones((self.num_joints, 3)) * 255,
                     skeleton=self.ann_info['skeleton'],
                     pose_link_color=np.ones((len(self.ann_info["skeleton"]), 3)) * 255
                 )
@@ -291,8 +297,8 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
                 img = f"{path}/{tail}"
                 processed_img = image.imshow_keypoints(
                     img,
-                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((17, 1)))), axis=0),
-                    pose_kpt_color=np.zeros((17, 3)),
+                    np.expand_dims(np.hstack((results['input_2d'][i], np.ones((self.num_joints, 1)))), axis=0),
+                    pose_kpt_color=np.zeros((self.num_joints, 3)),
                     skeleton=self.ann_info['skeleton'],
                     pose_link_color=np.zeros((len(self.ann_info["skeleton"]), 3))
                 )
