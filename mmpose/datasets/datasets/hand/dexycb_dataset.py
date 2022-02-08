@@ -4,7 +4,7 @@ import os.path as osp
 import warnings
 import yaml
 import glob
-from dex_ycb_toolkit.factory import get_dataset
+#from dex_ycb_toolkit.factory import get_dataset
 from collections import OrderedDict, defaultdict
 
 import numpy as np
