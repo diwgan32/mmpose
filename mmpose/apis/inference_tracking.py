@@ -163,15 +163,132 @@ def _temporal_refine(result, match_result, fps=None):
         result['one_euro'] = OneEuroFilter(result['keypoints'][:, :2], fps=fps)
     return result['keypoints']
 
+def _get_oks_list(res, results_last, thr):
+    """Get list of OKS scores
+
+    Args:
+        res (dict): The pose results of the person instance.
+        results_last (list[dict]): The pose & track_id info of the
+                last frame (pose_result, track_id).
+        thr (float): The threshold for oks tracking.
+
+    Returns:
+        list[float]: List of all oks scores for each posture in results_last
+        list[dict]: The pose & track_id info of the persons
+                that have not been matched on the last frame.
+        dict: The matched person instance on the last frame.
+    """
+    pose = res['keypoints'][:17].reshape((-1))
+    area = res['area']
+    max_index = -1
+    match_result = {}
+
+    if len(results_last) == 0:
+        return []
+
+    pose_last = np.array(
+        [res_last['keypoints'][:17].reshape((-1)) for res_last in results_last])
+    area_last = np.array([res_last['area'] for res_last in results_last])
+
+    oks_score = oks_iou(pose, pose_last, area, area_last)
+    oks_score = np.where(oks_score > thr, oks_score, 0)
+    return oks_score
+
+
+def _get_selection_weight(oks_mat, choices):
+    # Loop through oks_mat to get oks sum of current 
+    # choices. This is the value the recursion is maximizing
+    w = 0
+    for i in range(oks_mat.shape[0]):
+        if (choices[i] == -1):
+            continue
+        w += oks_mat[i][choices[i]]
+    return w
+
+def _get_remaining_oks_choices(num_choices, choices):
+    """ Helper function to return the list of remaining selections
+        between [0, n] that can be made, if the choices in `choices`
+        have already been made. """
+    r = [-1] # -1 indicates the "miss" choice
+    total = list(range(num_choices))
+    for val in total:
+        if (not val in choices):
+            r.append(val)
+            
+    return r
+
+def _pick_oks_choices(oks_mat, choices, max_dict):
+    """Recursive function to select pairings between current pose list
+    and previous pose list. Also allows selecting a "miss" meaning no
+    pose in prev pose list matches with a given current pose. 
+    
+    Args:
+        oks_mat: A m-by-n matrix where m = # current pose, n = # prev pose
+        choices: A list of indices built up recursively. the i-th element of this
+        list indicates which prev pose matches best with the i-th current pose.
+        max_dict: A dict to store the maximum weight, and the list of choices
+        that produced that max weight. Using dict to cheat and pass choices "by reference"
+
+    """
+        
+    if (len(choices) == oks_mat.shape[0]):
+        weight = _get_selection_weight(oks_mat, choices)
+        if (weight > max_dict["weight"]):
+            max_dict["weight"] = weight
+            max_dict["choices"] = choices
+        return
+    
+    remaining_choices = _get_remaining_oks_choices(oks_mat.shape[1], choices)
+    for r in remaining_choices:
+        new_choices = copy.deepcopy(choices)
+        new_choices.append(r)
+        _pick_oks_choices(oks_mat, new_choices, max_dict)
+    
+def _match_by_oks_helper(oks_mat):
+    #See below for lengthy description. Recursive helper
+    if (oks_mat.shape[0] == 0):
+        return [], []
+    num_people_current = oks_mat.shape[0]
+    num_people_prev = oks_mat.shape[1]
+    
+    choices = []
+    max_dict = {"weight": -1, "choices": []}
+    _pick_oks_choices(oks_mat, choices, max_dict)
+    return max_dict["choices"], oks_mat
+    
+def _match_by_oks(results, results_last, thr):
+    """Match by oks: Loop through all the pairings between
+    results and results_list recursively, and return 
+    a pairing between results and results_last
+    that maximizes the sum of oks scores between the pairings.
+    
+    Args:
+        results (list[dict]): Pose results currently
+        results_last (list[dict]): Previous pose results, including trackid
+        thr (float): The threshold for oks tracking.
+
+    Returns:
+        list[int]: A list that is same length as `results`. Each item
+        is an index into results_last, indicating which pose in results_last
+        matches closely with current idx in results.
+    """
+    oks_mat = []
+    for res in results:
+        oks_score = _get_oks_list(res, results_last, thr)
+        oks_mat.append(oks_score)
+    oks_mat = np.array(oks_mat)
+    
+    return _match_by_oks_helper(oks_mat)
 
 def get_track_id(results,
                  results_last,
-                 next_id,
+                 next_ids,
                  min_keypoints=3,
                  use_oks=False,
                  tracking_thr=0.3,
                  use_one_euro=False,
-                 fps=None):
+                 fps=None,
+                 num_people=None):
     """Get track id for each person instance on the current frame.
 
     Args:
@@ -179,7 +296,7 @@ def get_track_id(results,
                 (bbox_result, pose_result).
         results_last (list[dict]): The bbox & pose & track_id info of the
                 last frame (bbox_result, pose_result, track_id).
-        next_id (int): The track id for the new person instance.
+        next_ids (set): Set of avail ids
         min_keypoints (int): Minimum number of keypoints recognized as person.
                             default: 3.
         use_oks (bool): Flag to using oks tracking. default: False.
@@ -199,28 +316,46 @@ def get_track_id(results,
         _track = _track_by_oks
     else:
         _track = _track_by_iou
+    
+    if (num_people == 1):
+        results.sort(key=lambda x: x["area"], reverse=True)
 
+    choices, oks_mat = _match_by_oks(results, results_last, tracking_thr)
+    idx = 0
+    oks_scores = []
     for result in results:
-        track_id, results_last, match_result = _track(result, results_last,
-                                                      tracking_thr)
+        results_last_idx = choices[idx]
+        match_result = None
+        if (results_last_idx != -1):
+            match_result = results_last[results_last_idx]
+            track_id = match_result["track_id"]
+        else:
+            track_id = -1
         if track_id == -1:
-            if np.count_nonzero(result['keypoints'][:, 1]) > min_keypoints:
-                result['track_id'] = next_id
-                next_id += 1
-            else:
-                # If the number of keypoints detected is small,
-                # delete that person instance.
+            if np.count_nonzero(result['keypoints'][:, 1]) > min_keypoints and len(next_ids) > 0:
+                result['track_id'] = next_ids.pop()
+            elif np.count_nonzero(result['keypoints'][:, 1]) <= min_keypoints :
                 result['keypoints'][:, 1] = -10
                 result['bbox'] *= 0
+                result['track_id'] = -1
+            else:
                 result['track_id'] = -1
         else:
             result['track_id'] = track_id
         if use_one_euro:
             result['keypoints'] = _temporal_refine(
                 result, match_result, fps=fps)
-        del match_result
-
-    return results, next_id
+        if results_last_idx != -1: 
+            oks_scores.append(str(round(oks_mat[idx][results_last_idx], 2)))
+            for i in range(oks_mat[idx].size):
+                if (i != results_last_idx):
+                    oks_scores.append(", " + str(round(oks_mat[idx][i], 2)))
+        else:
+            oks_scores.append(-1)
+            
+        if (not match_result is None): del match_result
+        idx += 1
+    return results, next_ids, oks_scores
 
 
 def vis_pose_tracking_result(model,
