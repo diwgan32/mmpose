@@ -64,7 +64,7 @@ def oks_iou(g, d, a_g, a_d, sigmas=None, vis_thr=None):
     """
     joint_len = g.size
     if sigmas is None:
-        if (joint_len == 17):
+        if (joint_len == 17 * 3):
             sigmas = np.array([
                 .26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07,
                 .87, .87, .89, .89

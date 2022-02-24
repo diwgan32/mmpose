@@ -1,6 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import warnings
-
+import copy
 import numpy as np
 
 from mmpose.core import OneEuroFilter, oks_iou
