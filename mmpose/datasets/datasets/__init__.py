@@ -4,15 +4,19 @@ from ...deprecated import (TopDownFreiHandDataset, TopDownOneHand10KDataset,
 from .animal import (AnimalATRWDataset, AnimalFlyDataset, AnimalHorse10Dataset,
                      AnimalLocustDataset, AnimalMacaqueDataset,
                      AnimalPoseDataset, AnimalZebraDataset)
-from .body3d import (Body3DH36MDataset, Body3DH36MModifiedDataset, Body3DAISTDataset,
-                    Body3DPanopticDataset, Body3DCombinedDataset, Body3DAISTCOCODataset,
-                    Body3DH36MCOCODataset)
+from .body3d import (Body3DH36MDataset, Body3DMviewDirectCampusDataset,
+                     Body3DMviewDirectPanopticDataset,
+                     Body3DMviewDirectShelfDataset, 
+                     Body3DH36MModifiedDataset, Body3DAISTDataset,
+                     Body3DPanopticDataset, Body3DCombinedDataset, Body3DAISTCOCODataset,
+                     Body3DH36MCOCODataset)
 from .bottom_up import (BottomUpAicDataset, BottomUpCocoDataset,
                         BottomUpCocoWholeBodyDataset, BottomUpCrowdPoseDataset,
                         BottomUpMhpDataset)
 from .face import (Face300WDataset, FaceAFLWDataset, FaceCocoWholeBodyDataset,
                    FaceCOFWDataset, FaceWFLWDataset)
 from .fashion import DeepFashionDataset
+from .gesture import NVGestureDataset
 from .hand import (FreiHandDataset, HandCocoWholeBodyDataset,
                    InterHand2DDataset, InterHand3DDataset, OneHand10KDataset,
                    PanopticDataset, DexYCBDataset)
@@ -44,7 +48,9 @@ __all__ = [
     'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
-    'TopDownHalpeDataset', 'Body3DPanopticDataset', 'Body3DCombinedDataset', 
-    'TopDownPoseTrack18VideoDataset', "Body3DAISTCOCODataset",
+    'TopDownHalpeDataset', 'TopDownPoseTrack18VideoDataset',
+    'Body3DMviewDirectPanopticDataset', 'Body3DMviewDirectShelfDataset',
+    'Body3DMviewDirectCampusDataset', 'NVGestureDataset', 'Body3DPanopticDataset', 'Body3DCombinedDataset', 
+    "Body3DAISTCOCODataset",
     'Body3DH36MCOCODataset', 'DexYCBDataset'
 ]

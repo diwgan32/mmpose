@@ -1,9 +1,7 @@
-_base_ = ['../../../../_base_/datasets/interhand3d.py']
-log_level = 'INFO'
-load_from = None
-resume_from = None
-dist_params = dict(backend='nccl')
-workflow = [('train', 1)]
+_base_ = [
+    '../../../../_base_/default_runtime.py',
+    '../../../../_base_/datasets/interhand3d.py'
+]
 checkpoint_config = dict(interval=1)
 evaluation = dict(
     interval=1,
@@ -76,8 +74,9 @@ data_cfg = dict(
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
+    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.16, prob=0.3),
     dict(type='HandRandomFlip', flip_prob=0.5),
-    dict(type='TopDownRandomTranslation', trans_factor=0.15),
     dict(
         type='TopDownGetRandomScaleRotation',
         rot_factor=45,
@@ -117,6 +116,7 @@ train_pipeline = [
 
 val_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(

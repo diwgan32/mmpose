@@ -77,11 +77,13 @@ For more details, please refer to https://github.com/ageitgey/face_recognition.
 ```shell
 python demo/face_video_demo.py \
     ${MMPOSE_CONFIG_FILE} ${MMPOSE_CHECKPOINT_FILE} \
-    --video-path ${VIDEO_FILE} \
+    --video-path ${VIDEO_PATH} \
     --out-video-root ${OUTPUT_VIDEO_ROOT} \
     [--show --device ${GPU_ID or CPU}] \
     [--kpt-thr ${KPT_SCORE_THR}]
 ```
+
+Note that `${VIDEO_PATH}` can be the local path or **URL** link to video file.
 
 Examples:
 
@@ -100,4 +102,4 @@ Some tips to speed up MMPose inference:
 For 2D face keypoint estimation models, try to edit the config file. For example,
 
 1. set `flip_test=False` in [face-hrnetv2_w18](https://github.com/open-mmlab/mmpose/tree/e1ec589884235bee875c89102170439a991f8450/configs/face/hrnetv2/aflw/hrnetv2_w18_aflw_256x256.py#L83).
-1. set `post_process='default'` in [face-hrnetv2_w18](https://github.com/open-mmlab/mmpose/tree/e1ec589884235bee875c89102170439a991f8450/configs/face/hrnetv2/aflw/hrnetv2_w18_aflw_256x256.py#L84).
+2. set `post_process='default'` in [face-hrnetv2_w18](https://github.com/open-mmlab/mmpose/tree/e1ec589884235bee875c89102170439a991f8450/configs/face/hrnetv2/aflw/hrnetv2_w18_aflw_256x256.py#L84).

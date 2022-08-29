@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import copy
+import warnings
 from abc import ABCMeta, abstractmethod
 
 import json_tricks as json
@@ -137,6 +138,14 @@ class Kpt2dSviewRgbImgTopDownDataset(Dataset, metaclass=ABCMeta):
             center (np.ndarray[float32](2,)): center of the bbox (x, y).
             scale (np.ndarray[float32](2,)): scale of the bbox w & h.
         """
+
+        warnings.warn(
+            'The ``_xywh2cs`` method will be deprecated and removed from '
+            f'{self.__class__.__name__} in the future. Please use data '
+            'transforms ``TopDownGetBboxCenterScale`` and '
+            '``TopDownRandomShiftBboxCenter`` in the pipeline instead.',
+            DeprecationWarning)
+
         aspect_ratio = self.ann_info['image_size'][0] / self.ann_info[
             'image_size'][1]
         center = np.array([x + w * 0.5, y + h * 0.5], dtype=np.float32)
@@ -164,7 +173,7 @@ class Kpt2dSviewRgbImgTopDownDataset(Dataset, metaclass=ABCMeta):
         Args:
             gts (np.ndarray[N, K, 2]): Groundtruth keypoint location.
 
-        Return:
+        Returns:
             np.ndarray[N, 2]: normalized factor
         """
         return np.ones([gts.shape[0], 2], dtype=np.float32)
@@ -175,9 +184,8 @@ class Kpt2dSviewRgbImgTopDownDataset(Dataset, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def evaluate(self, cfg, outputs, res_folder, metric, *args, **kwargs):
+    def evaluate(self, results, *args, **kwargs):
         """Evaluate keypoint results."""
-        raise NotImplementedError
 
     @staticmethod
     def _write_keypoint_results(keypoints, res_file):

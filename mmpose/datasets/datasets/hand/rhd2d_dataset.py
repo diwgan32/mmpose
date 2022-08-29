@@ -1,10 +1,11 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-import os
+import os.path as osp
+import tempfile
 import warnings
 from collections import OrderedDict
 
 import numpy as np
-from mmcv import Config
+from mmcv import Config, deprecated_api_warning
 
 from mmpose.datasets.builder import DATASETS
 from ..base import Kpt2dSviewRgbImgTopDownDataset
@@ -14,7 +15,8 @@ from ..base import Kpt2dSviewRgbImgTopDownDataset
 class Rhd2DDataset(Kpt2dSviewRgbImgTopDownDataset):
     """Rendered Handpose Dataset for top-down hand pose estimation.
 
-    `Learning to Estimate 3D Hand Pose from Single RGB Images' ICCV'2017
+    "Learning to Estimate 3D Hand Pose from Single RGB Images",
+    ICCV'2017.
     More details can be found in the `paper
     <https://arxiv.org/pdf/1705.01389.pdf>`__ .
 
@@ -24,26 +26,26 @@ class Rhd2DDataset(Kpt2dSviewRgbImgTopDownDataset):
     Rhd keypoint indexes::
 
         0: 'wrist',
-        1: 'thumb1',
-        2: 'thumb2',
-        3: 'thumb3',
-        4: 'thumb4',
-        5: 'forefinger1',
-        6: 'forefinger2',
-        7: 'forefinger3',
-        8: 'forefinger4',
-        9: 'middle_finger1',
-        10: 'middle_finger2',
-        11: 'middle_finger3',
-        12: 'middle_finger4',
-        13: 'ring_finger1',
-        14: 'ring_finger2',
-        15: 'ring_finger3',
-        16: 'ring_finger4',
-        17: 'pinky_finger1',
-        18: 'pinky_finger2',
-        19: 'pinky_finger3',
-        20: 'pinky_finger4'
+        1: 'thumb4',
+        2: 'thumb3',
+        3: 'thumb2',
+        4: 'thumb1',
+        5: 'forefinger4',
+        6: 'forefinger3',
+        7: 'forefinger2',
+        8: 'forefinger1',
+        9: 'middle_finger4',
+        10: 'middle_finger3',
+        11: 'middle_finger2',
+        12: 'middle_finger1',
+        13: 'ring_finger4',
+        14: 'ring_finger3',
+        15: 'ring_finger2',
+        16: 'ring_finger1',
+        17: 'pinky_finger4',
+        18: 'pinky_finger3',
+        19: 'pinky_finger2',
+        20: 'pinky_finger1'
 
     Args:
         ann_file (str): Path to the annotation file.
@@ -71,6 +73,13 @@ class Rhd2DDataset(Kpt2dSviewRgbImgTopDownDataset):
                 'for details.', DeprecationWarning)
             cfg = Config.fromfile('configs/_base_/datasets/rhd2d.py')
             dataset_info = cfg._cfg_dict['dataset_info']
+        warnings.warn(
+            'Please note that the in RHD dataset, its keypoint indices are'
+            'different from other hand datasets like COCO-WholeBody-Hand,'
+            'FreiHand, CMU Panoptic HandDB, and OneHand10K. You can check'
+            '`configs/_base_/datasets/rhd2d.py` for details. If you want to '
+            'combine RHD with other hand datasets to train a single model, '
+            'please reorder the keypoint indices accordingly.')
 
         super().__init__(
             ann_file,
@@ -106,15 +115,9 @@ class Rhd2DDataset(Kpt2dSviewRgbImgTopDownDataset):
                 joints_3d[:, :2] = keypoints[:, :2]
                 joints_3d_visible[:, :2] = np.minimum(1, keypoints[:, 2:3])
 
-                # the ori image is 224x224
-                center, scale = self._xywh2cs(*obj['bbox'][:4], padding=1.25)
-
-                image_file = os.path.join(self.img_prefix,
-                                          self.id2name[img_id])
+                image_file = osp.join(self.img_prefix, self.id2name[img_id])
                 gt_db.append({
                     'image_file': image_file,
-                    'center': center,
-                    'scale': scale,
                     'rotation': 0,
                     'joints_3d': joints_3d,
                     'joints_3d_visible': joints_3d_visible,
@@ -128,27 +131,31 @@ class Rhd2DDataset(Kpt2dSviewRgbImgTopDownDataset):
 
         return gt_db
 
-    def evaluate(self, outputs, res_folder, metric='PCK', **kwargs):
+    @deprecated_api_warning(name_dict=dict(outputs='results'))
+    def evaluate(self, results, res_folder=None, metric='PCK', **kwargs):
         """Evaluate rhd keypoint results. The pose prediction results will be
-        saved in `${res_folder}/result_keypoints.json`.
+        saved in ``${res_folder}/result_keypoints.json``.
 
         Note:
-            batch_size: N
-            num_keypoints: K
-            heatmap height: H
-            heatmap width: W
+            - batch_size: N
+            - num_keypoints: K
+            - heatmap height: H
+            - heatmap width: W
 
         Args:
-            outputs (list(preds, boxes, image_path, output_heatmap))
-                :preds (np.ndarray[N,K,3]): The first two dimensions are
-                    coordinates, score is the third dimension of the array.
-                :boxes (np.ndarray[N,6]): [center[0], center[1], scale[0]
-                    , scale[1],area, score]
-                :image_paths (list[str]): For example
-                    , ['training/rgb/00031426.jpg']
-                :output_heatmap (np.ndarray[N, K, H, W]): model outputs.
+            results (list[dict]): Testing results containing the following
+                items:
 
-            res_folder (str): Path of directory to save the results.
+                - preds (np.ndarray[N,K,3]): The first two dimensions are \
+                    coordinates, score is the third dimension of the array.
+                - boxes (np.ndarray[N,6]): [center[0], center[1], scale[0], \
+                    scale[1], area, score]
+                - image_paths (list[str]): For example,
+                    ['training/rgb/00031426.jpg']
+                - output_heatmap (np.ndarray[N, K, H, W]): model outputs.
+            res_folder (str, optional): The folder to save the testing
+                results. If not specified, a temp folder will be created.
+                Default: None.
             metric (str | list[str]): Metric to be performed.
                 Options: 'PCK', 'AUC', 'EPE'.
 
@@ -161,14 +168,19 @@ class Rhd2DDataset(Kpt2dSviewRgbImgTopDownDataset):
             if metric not in allowed_metrics:
                 raise KeyError(f'metric {metric} is not supported')
 
-        res_file = os.path.join(res_folder, 'result_keypoints.json')
+        if res_folder is not None:
+            tmp_folder = None
+            res_file = osp.join(res_folder, 'result_keypoints.json')
+        else:
+            tmp_folder = tempfile.TemporaryDirectory()
+            res_file = osp.join(tmp_folder.name, 'result_keypoints.json')
 
         kpts = []
-        for output in outputs:
-            preds = output['preds']
-            boxes = output['boxes']
-            image_paths = output['image_paths']
-            bbox_ids = output['bbox_ids']
+        for result in results:
+            preds = result['preds']
+            boxes = result['boxes']
+            image_paths = result['image_paths']
+            bbox_ids = result['bbox_ids']
 
             batch_size = len(image_paths)
             for i in range(batch_size):
@@ -188,5 +200,8 @@ class Rhd2DDataset(Kpt2dSviewRgbImgTopDownDataset):
         self._write_keypoint_results(kpts, res_file)
         info_str = self._report_metric(res_file, metrics)
         name_value = OrderedDict(info_str)
+
+        if tmp_folder is not None:
+            tmp_folder.cleanup()
 
         return name_value

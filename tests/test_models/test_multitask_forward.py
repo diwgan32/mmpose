@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import numpy as np
+import pytest
 import torch
 
 from mmpose.models.detectors import MultiTask
@@ -24,7 +25,9 @@ def test_multitask_forward():
         pretrained=None,
     )
     model = MultiTask(**model_cfg)
-
+    with pytest.raises(TypeError):
+        model.init_weights(pretrained=dict())
+    model.pretrained = model_cfg['pretrained']
     # build inputs and target
     mm_inputs = _demo_mm_inputs()
     inputs = mm_inputs['img']
@@ -67,7 +70,7 @@ def test_multitask_forward():
 
     # Test forward train
     losses = model(inputs, target, target_weight, return_loss=True)
-    assert 'mse_loss' in losses and 'acc_pose' in losses
+    assert 'heatmap_loss' in losses and 'acc_pose' in losses
 
     # Test forward test
     outputs = model(inputs, img_metas=img_metas, return_loss=False)

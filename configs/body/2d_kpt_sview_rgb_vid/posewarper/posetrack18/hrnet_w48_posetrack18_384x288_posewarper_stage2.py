@@ -1,10 +1,9 @@
-_base_ = ['../../../../_base_/datasets/posetrack18.py']
-log_level = 'INFO'
+_base_ = [
+    '../../../../_base_/default_runtime.py',
+    '../../../../_base_/datasets/posetrack18.py'
+]
 load_from = 'https://download.openmmlab.com/mmpose/top_down/posewarper/hrnet_w48_posetrack18_384x288_posewarper_stage1-08b632aa_20211130.pth'  # noqa: E501
-resume_from = None
-dist_params = dict(backend='nccl')
 cudnn_benchmark = True
-workflow = [('train', 1)]
 checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metric='mAP', save_best='Total AP')
 
@@ -67,7 +66,7 @@ model = dict(
                 num_channels=(48, 96, 192, 384))),
         frozen_stages=4,
     ),
-    concat_tensors=True,
+    concat_tensors=False,
     neck=dict(
         type='PoseWarperNeck',
         in_channels=48,
@@ -125,6 +124,8 @@ data_cfg = dict(
 # take care of orders of the transforms
 train_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
+    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.16, prob=0.3),
     dict(
         type='TopDownHalfBodyTransform',
         num_joints_half_body=8,
@@ -151,6 +152,7 @@ train_pipeline = [
 
 val_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(

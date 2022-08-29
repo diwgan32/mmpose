@@ -6,11 +6,93 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..builder import LOSSES
+from ..utils.realnvp import RealNVP
+
+
+@LOSSES.register_module()
+class RLELoss(nn.Module):
+    """RLE Loss.
+
+    `Human Pose Regression With Residual Log-Likelihood Estimation
+    arXiv: <https://arxiv.org/abs/2107.11291>`_.
+
+    Code is modified from `the official implementation
+    <https://github.com/Jeff-sjtu/res-loglikelihood-regression>`_.
+
+    Args:
+        use_target_weight (bool): Option to use weighted MSE loss.
+            Different joint types may have different target weights.
+        size_average (bool): Option to average the loss by the batch_size.
+        residual (bool): Option to add L1 loss and let the flow
+            learn the residual error distribution.
+        q_dis (string): Option for the identity Q(error) distribution,
+            Options: "laplace" or "gaussian"
+    """
+
+    def __init__(self,
+                 use_target_weight=False,
+                 size_average=True,
+                 residual=True,
+                 q_dis='laplace'):
+        super(RLELoss, self).__init__()
+        self.size_average = size_average
+        self.use_target_weight = use_target_weight
+        self.residual = residual
+        self.q_dis = q_dis
+
+        self.flow_model = RealNVP()
+
+    def forward(self, output, target, target_weight=None):
+        """Forward function.
+
+        Note:
+            - batch_size: N
+            - num_keypoints: K
+            - dimension of keypoints: D (D=2 or D=3)
+
+        Args:
+            output (torch.Tensor[N, K, D*2]): Output regression,
+                    including coords and sigmas.
+            target (torch.Tensor[N, K, D]): Target regression.
+            target_weight (torch.Tensor[N, K, D]):
+                Weights across different joint types.
+        """
+        pred = output[:, :, :2]
+        sigma = output[:, :, 2:4].sigmoid()
+
+        error = (pred - target) / (sigma + 1e-9)
+        # (B, K, 2)
+        log_phi = self.flow_model.log_prob(error.reshape(-1, 2))
+        log_phi = log_phi.reshape(target.shape[0], target.shape[1], 1)
+        log_sigma = torch.log(sigma).reshape(target.shape[0], target.shape[1],
+                                             2)
+        nf_loss = log_sigma - log_phi
+
+        if self.residual:
+            assert self.q_dis in ['laplace', 'gaussian', 'strict']
+            if self.q_dis == 'laplace':
+                loss_q = torch.log(sigma * 2) + torch.abs(error)
+            else:
+                loss_q = torch.log(
+                    sigma * math.sqrt(2 * math.pi)) + 0.5 * error**2
+
+            loss = nf_loss + loss_q
+        else:
+            loss = nf_loss
+
+        if self.use_target_weight:
+            assert target_weight is not None
+            loss *= target_weight
+
+        if self.size_average:
+            loss /= len(loss)
+
+        return loss.sum()
 
 
 @LOSSES.register_module()
 class SmoothL1Loss(nn.Module):
-    """SmoothL1Loss loss .
+    """SmoothL1Loss loss.
 
     Args:
         use_target_weight (bool): Option to use weighted MSE loss.
@@ -28,9 +110,9 @@ class SmoothL1Loss(nn.Module):
         """Forward function.
 
         Note:
-            batch_size: N
-            num_keypoints: K
-            dimension of keypoints: D (D=2 or D=3)
+            - batch_size: N
+            - num_keypoints: K
+            - dimension of keypoints: D (D=2 or D=3)
 
         Args:
             output (torch.Tensor[N, K, D]): Output regression.
@@ -50,11 +132,12 @@ class SmoothL1Loss(nn.Module):
 
 @LOSSES.register_module()
 class WingLoss(nn.Module):
-    """Wing Loss 'Wing Loss for Robust Facial Landmark Localisation with
-    Convolutional Neural Networks' Feng et al. CVPR'2018.
+    """Wing Loss. paper ref: 'Wing Loss for Robust Facial Landmark Localisation
+    with Convolutional Neural Networks' Feng et al. CVPR'2018.
 
     Args:
-        omega (float), epsilon (float) are hyper-parameters.
+        omega (float): Also referred to as width.
+        epsilon (float): Also referred to as curvature.
         use_target_weight (bool): Option to use weighted MSE loss.
             Different joint types may have different target weights.
         loss_weight (float): Weight of the loss. Default: 1.0.
@@ -79,6 +162,84 @@ class WingLoss(nn.Module):
         """Criterion of wingloss.
 
         Note:
+            - batch_size: N
+            - num_keypoints: K
+            - dimension of keypoints: D (D=2 or D=3)
+
+        Args:
+            pred (torch.Tensor[N, K, D]): Output regression.
+            target (torch.Tensor[N, K, D]): Target regression.
+        """
+        delta = (target - pred).abs()
+        losses = torch.where(
+            delta < self.omega,
+            self.omega * torch.log(1.0 + delta / self.epsilon), delta - self.C)
+        return torch.mean(torch.sum(losses, dim=[1, 2]), dim=0)
+
+    def forward(self, output, target, target_weight=None):
+        """Forward function.
+
+        Note:
+            - batch_size: N
+            - num_keypoints: K
+            - dimension of keypoints: D (D=2 or D=3)
+
+        Args:
+            output (torch.Tensor[N, K, D]): Output regression.
+            target (torch.Tensor[N, K, D]): Target regression.
+            target_weight (torch.Tensor[N,K,D]):
+                Weights across different joint types.
+        """
+        if self.use_target_weight:
+            assert target_weight is not None
+            loss = self.criterion(output * target_weight,
+                                  target * target_weight)
+        else:
+            loss = self.criterion(output, target)
+
+        return loss * self.loss_weight
+
+
+@LOSSES.register_module()
+class SoftWingLoss(nn.Module):
+    """Soft Wing Loss 'Structure-Coherent Deep Feature Learning for Robust Face
+    Alignment' Lin et al. TIP'2021.
+
+    loss =
+        1. |x|                           , if |x| < omega1
+        2. omega2*ln(1+|x|/epsilon) + B, if |x| >= omega1
+
+    Args:
+        omega1 (float): The first threshold.
+        omega2 (float): The second threshold.
+        epsilon (float): Also referred to as curvature.
+        use_target_weight (bool): Option to use weighted MSE loss.
+            Different joint types may have different target weights.
+        loss_weight (float): Weight of the loss. Default: 1.0.
+    """
+
+    def __init__(self,
+                 omega1=2.0,
+                 omega2=20.0,
+                 epsilon=0.5,
+                 use_target_weight=False,
+                 loss_weight=1.):
+        super().__init__()
+        self.omega1 = omega1
+        self.omega2 = omega2
+        self.epsilon = epsilon
+        self.use_target_weight = use_target_weight
+        self.loss_weight = loss_weight
+
+        # constant that smoothly links the piecewise-defined linear
+        # and nonlinear parts
+        self.B = self.omega1 - self.omega2 * math.log(1.0 + self.omega1 /
+                                                      self.epsilon)
+
+    def criterion(self, pred, target):
+        """Criterion of wingloss.
+
+        Note:
             batch_size: N
             num_keypoints: K
             dimension of keypoints: D (D=2 or D=3)
@@ -89,8 +250,8 @@ class WingLoss(nn.Module):
         """
         delta = (target - pred).abs()
         losses = torch.where(
-            delta < self.omega,
-            self.omega * torch.log(1.0 + delta / self.epsilon), delta - self.C)
+            delta < self.omega1, delta,
+            self.omega2 * torch.log(1.0 + delta / self.epsilon) + self.B)
         return torch.mean(torch.sum(losses, dim=[1, 2]), dim=0)
 
     def forward(self, output, target, target_weight=None):
@@ -136,14 +297,14 @@ class MPJPELoss(nn.Module):
         """Forward function.
 
         Note:
-            batch_size: N
-            num_keypoints: K
-            dimension of keypoints: D (D=2 or D=3)
+            - batch_size: N
+            - num_keypoints: K
+            - dimension of keypoints: D (D=2 or D=3)
 
         Args:
             output (torch.Tensor[N, K, D]): Output regression.
             target (torch.Tensor[N, K, D]): Target regression.
-            target_weight (torch.Tensor[N, K, D]):
+            target_weight (torch.Tensor[N,K,D]):
                 Weights across different joint types.
         """
 
@@ -171,8 +332,8 @@ class L1Loss(nn.Module):
         """Forward function.
 
         Note:
-            batch_size: N
-            num_keypoints: K
+            - batch_size: N
+            - num_keypoints: K
 
         Args:
             output (torch.Tensor[N, K, 2]): Output regression.
@@ -204,8 +365,8 @@ class MSELoss(nn.Module):
         """Forward function.
 
         Note:
-            batch_size: N
-            num_keypoints: K
+            - batch_size: N
+            - num_keypoints: K
 
         Args:
             output (torch.Tensor[N, K, 2]): Output regression.
@@ -249,9 +410,9 @@ class BoneLoss(nn.Module):
         """Forward function.
 
         Note:
-            batch_size: N
-            num_keypoints: K
-            dimension of keypoints: D (D=2 or D=3)
+            - batch_size: N
+            - num_keypoints: K
+            - dimension of keypoints: D (D=2 or D=3)
 
         Args:
             output (torch.Tensor[N, K, D]): Output regression.
@@ -282,8 +443,8 @@ class SemiSupervisionLoss(nn.Module):
     """Semi-supervision loss for unlabeled data. It is composed of projection
     loss and bone loss.
 
-     Paper ref: `3D human pose estimation in video with temporal convolutions
-     and semi-supervised training` Dario Pavllo et al. CVPR'2019.
+    Paper ref: `3D human pose estimation in video with temporal convolutions
+    and semi-supervised training` Dario Pavllo et al. CVPR'2019.
 
     Args:
         joint_parents (list): Indices of each joint's parent joint.

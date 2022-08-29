@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import warnings
+from functools import partial
 import copy
 import numpy as np
 
@@ -42,13 +43,13 @@ def _track_by_iou(res, results_last, thr):
     Args:
         res (dict): The bbox & pose results of the person instance.
         results_last (list[dict]): The bbox & pose & track_id info of the
-                last frame (bbox_result, pose_result, track_id).
+            last frame (bbox_result, pose_result, track_id).
         thr (float): The threshold for iou tracking.
 
     Returns:
         int: The track id for the new person instance.
         list[dict]: The bbox & pose & track_id info of the persons
-                that have not been matched on the last frame.
+            that have not been matched on the last frame.
         dict: The matched person instance on the last frame.
     """
 
@@ -75,19 +76,20 @@ def _track_by_iou(res, results_last, thr):
     return track_id, results_last, match_result
 
 
-def _track_by_oks(res, results_last, thr):
+def _track_by_oks(res, results_last, thr, sigmas):
     """Get track id using OKS tracking greedily.
 
     Args:
         res (dict): The pose results of the person instance.
         results_last (list[dict]): The pose & track_id info of the
-                last frame (pose_result, track_id).
+            last frame (pose_result, track_id).
         thr (float): The threshold for oks tracking.
+        sigmas (np.ndarray): standard deviation of keypoint labelling.
 
     Returns:
         int: The track id for the new person instance.
         list[dict]: The pose & track_id info of the persons
-                that have not been matched on the last frame.
+            that have not been matched on the last frame.
         dict: The matched person instance on the last frame.
     """
     pose = res['keypoints'].reshape((-1))
@@ -102,7 +104,7 @@ def _track_by_oks(res, results_last, thr):
         [res_last['keypoints'].reshape((-1)) for res_last in results_last])
     area_last = np.array([res_last['area'] for res_last in results_last])
 
-    oks_score = oks_iou(pose, pose_last, area, area_last)
+    oks_score = oks_iou(pose, pose_last, area, area_last, sigmas=sigmas)
 
     max_index = np.argmax(oks_score)
 
@@ -121,15 +123,15 @@ def _get_area(results):
 
     Args:
         results (list[dict]): The pose results of the current frame
-                (pose_result).
+            (pose_result).
     Returns:
         list[dict]: The bbox & pose info of the current frame
-                (bbox_result, pose_result, area).
+            (bbox_result, pose_result, area).
     """
     for result in results:
         if 'bbox' in result:
-            result['area'] = np.abs((result['bbox'][2] - result['bbox'][0]) *
-                                    (result['bbox'][3] - result['bbox'][1]))
+            result['area'] = ((result['bbox'][2] - result['bbox'][0]) *
+                              (result['bbox'][3] - result['bbox'][1]))
         else:
             xmin = np.min(
                 result['keypoints'][:, 0][result['keypoints'][:, 0] > 0],
@@ -152,7 +154,7 @@ def _temporal_refine(result, match_result, fps=None):
                 (pose_result).
         match_result (dict): The pose results of the last frame
                 (match_result)
-    return:
+    Returns:
         (array): The person keypoints after refine.
     """
     if 'one_euro' in match_result:
@@ -374,11 +376,11 @@ def vis_pose_tracking_result(model,
         model (nn.Module): The loaded detector.
         img (str | np.ndarray): Image filename or loaded image.
         result (list[dict]): The results to draw over `img`
-                (bbox_result, pose_result).
+            (bbox_result, pose_result).
         radius (int): Radius of circles.
         thickness (int): Thickness of lines.
         kpt_score_thr (float): The threshold to visualize the keypoints.
-        skeleton (list[tuple()]): Default None.
+        skeleton (list[tuple]): Default None.
         show (bool):  Whether to show the image. Default True.
         out_file (str|None): The filename of the output visualization image.
     """

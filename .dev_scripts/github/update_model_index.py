@@ -105,16 +105,18 @@ def collect_paper_readme():
     link_prefix = 'https://github.com/open-mmlab/mmpose/blob/master/'
 
     readme_files = glob.glob(osp.join('docs/en/papers/*/*.md'))
+    readme_files.sort()
     collection2readme = {}
 
     for readme_file in readme_files:
-        with open(readme_file) as f:
+        with open(readme_file, encoding='utf-8') as f:
             keyline = [
                 line for line in f.readlines() if line.startswith('<summary')
             ][0]
             name = re.findall(r'<a href=".*">(.*?)[ ]*\(.*\'.*\).*</a>',
                               keyline)[0]
-            collection2readme[name] = link_prefix + readme_file
+            collection2readme[name] = link_prefix + readme_file.replace(
+                '\\', '/')
 
     return collection2readme
 
@@ -146,8 +148,10 @@ def parse_config_path(path):
         '2d_kpt_sview_rgb_img': '2D Keypoint',
         '2d_kpt_sview_rgb_vid': '2D Keypoint',
         '3d_kpt_sview_rgb_img': '3D Keypoint',
+        '3d_kpt_mview_rgb_img': '3D Keypoint',
         '3d_kpt_sview_rgb_vid': '3D Keypoint',
         '3d_mesh_sview_rgb_img': '3D Mesh',
+        'gesture_sview_rgbd_vid': 'Gesture',
         None: None
     }
     task_readable = task2readable.get(task)
@@ -185,7 +189,7 @@ def parse_md(md_file):
     # architectures for collection and model
     architecture = []
 
-    with open(md_file, 'r') as md:
+    with open(md_file, 'r', encoding='utf-8') as md:
         lines = md.readlines()
         i = 0
         while i < len(lines):
@@ -317,8 +321,10 @@ def update_model_index():
     yml_files.sort()
 
     model_index = {
-        'Import':
-        [osp.relpath(yml_file, MMPOSE_ROOT) for yml_file in yml_files]
+        'Import': [
+            osp.relpath(yml_file, MMPOSE_ROOT).replace('\\', '/')
+            for yml_file in yml_files
+        ]
     }
     model_index_file = osp.join(MMPOSE_ROOT, 'model-index.yml')
     is_different = dump_yaml_and_check_difference(model_index,
@@ -329,7 +335,10 @@ def update_model_index():
 
 if __name__ == '__main__':
 
-    file_list = [fn for fn in sys.argv[1:] if osp.basename(fn) != 'README.md']
+    file_list = [
+        fn for fn in sys.argv[1:]
+        if osp.basename(fn) != 'README.md' and '_base_' not in fn
+    ]
 
     if not file_list:
         sys.exit(0)

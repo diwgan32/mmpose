@@ -20,7 +20,9 @@ from .datasets import (  # isort:skip
     TopDownFreiHandDataset, TopDownH36MDataset, TopDownJhmdbDataset,
     TopDownMhpDataset, TopDownMpiiDataset, TopDownMpiiTrbDataset,
     TopDownOCHumanDataset, TopDownOneHand10KDataset, TopDownPanopticDataset,
-    TopDownPoseTrack18Dataset, TopDownPoseTrack18VideoDataset, Body3DPanopticDataset,
+    TopDownPoseTrack18Dataset, TopDownPoseTrack18VideoDataset,
+    Body3DMviewDirectPanopticDataset, Body3DMviewDirectShelfDataset,
+    Body3DMviewDirectCampusDataset, NVGestureDataset, Body3DPanopticDataset,
     Body3DAISTCOCODataset, Body3DH36MCOCODataset, DexYCBDataset)
 
 __all__ = [
@@ -40,8 +42,9 @@ __all__ = [
     'AnimalHorse10Dataset', 'AnimalMacaqueDataset',
     'AnimalFlyDataset', 'AnimalLocustDataset', 'AnimalZebraDataset',
     'AnimalATRWDataset', 'AnimalPoseDataset', 'TopDownH36MDataset',
-    'build_dataloader', 'build_dataset', 'Compose', 'DistributedSampler',
-    'DATASETS', 'PIPELINES', 'DatasetInfo', "Body3DPanopticDataset",
-    'Body3DCombinedDataset', 'TopDownPoseTrack18VideoDataset', 'Body3DAISTCOCODataset',
+    'TopDownPoseTrack18VideoDataset', 'build_dataloader', 'build_dataset',
+    'Compose', 'DistributedSampler', 'DATASETS', 'PIPELINES', 'DatasetInfo',
+    'Body3DMviewDirectPanopticDataset', 'Body3DMviewDirectShelfDataset',
+    'Body3DMviewDirectCampusDataset', 'NVGestureDataset', 'Body3DAISTCOCODataset',
     'Body3DH36MCOCODataset', 'DexYCBDataset'
 ]

@@ -9,7 +9,7 @@ You can change the documentation language at the lower-left corner of the page.
    :maxdepth: 2
 
    install.md
-   getting_started.md
+   get_started.md
    demo.md
    benchmark.md
    inference_speed_summary.md
@@ -35,15 +35,17 @@ You can change the documentation language at the lower-left corner of the page.
 
    modelzoo.md
    topics/animal.md
-   topics/body(2d,kpt,img).md
-   topics/body(2d,kpt,vid).md
-   topics/body(3d,kpt,img).md
-   topics/body(3d,kpt,vid).md
-   topics/body(3d,mesh,img).md
+   topics/body(2d,kpt,sview,img).md
+   topics/body(2d,kpt,sview,vid).md
+   topics/body(3d,kpt,sview,img).md
+   topics/body(3d,kpt,sview,vid).md
+   topics/body(3d,kpt,mview,img).md
+   topics/body(3d,mesh,sview,img).md
    topics/face.md
    topics/fashion.md
-   topics/hand(2d).md
-   topics/hand(3d).md
+   topics/hand(2d,kpt,rgb,img).md
+   topics/hand(3d,kpt,rgb,img).md
+   topics/hand(gesture,rgbd,vid).md
    topics/wholebody.md
 
 .. toctree::
@@ -66,6 +68,7 @@ You can change the documentation language at the lower-left corner of the page.
    tutorials/4_new_modules.md
    tutorials/5_export_model.md
    tutorials/6_customize_runtime.md
+   tutorials/7_webcam_api.md
 
 .. toctree::
    :maxdepth: 2

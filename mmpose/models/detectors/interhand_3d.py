@@ -27,17 +27,17 @@ class Interhand3D(TopDown):
         return_loss=True. Note this setting will change the expected inputs.
         When `return_loss=True`, img and img_meta are single-nested (i.e.
         Tensor and List[dict]), and when `resturn_loss=False`, img and img_meta
-        should be double nested (i.e.  List[Tensor], List[List[dict]]), with
+        should be double nested (i.e.  list[Tensor], list[list[dict]]), with
         the outer list indicating test time augmentations.
 
         Note:
-            batch_size: N
-            num_keypoints: K
-            num_img_channel: C (Default: 3)
-            img height: imgH
-            img width: imgW
-            heatmaps height: H
-            heatmaps weight: W
+            - batch_size: N
+            - num_keypoints: K
+            - num_img_channel: C (Default: 3)
+            - img height: imgH
+            - img width: imgW
+            - heatmaps height: H
+            - heatmaps weight: W
 
         Args:
             img (torch.Tensor[NxCximgHximgW]): Input images.
@@ -47,22 +47,23 @@ class Interhand3D(TopDown):
             heatmaps, relative hand root depth and hand type.
             img_metas (list(dict)): Information about data augmentation
                 By default this includes:
+
                 - "image_file: path to the image file
                 - "center": center of the bbox
                 - "scale": scale of the bbox
                 - "rotation": rotation of the bbox
                 - "bbox_score": score of bbox
                 - "heatmap3d_depth_bound": depth bound of hand keypoint 3D
-                heatmap
+                    heatmap
                 - "root_depth_bound": depth bound of relative root depth 1D
-                heatmap
+                    heatmap
             return_loss (bool): Option to `return loss`. `return loss=True`
                 for training, `return loss=False` for validation & test.
 
         Returns:
-            dict|tuple: if `return loss` is true, then return losses.
-              Otherwise, return predicted poses, boxes, image paths, heatmaps,
-              relative hand root depth and hand type.
+            dict|tuple: if `return loss` is true, then return losses. \
+                Otherwise, return predicted poses, boxes, image paths, \
+                heatmaps, relative hand root depth and hand type.
         """
         if return_loss:
             return self.forward_train(img, target, target_weight, img_metas,
@@ -115,6 +116,7 @@ class Interhand3D(TopDown):
                     pose_link_color=None,
                     vis_height=400,
                     num_instances=-1,
+                    axis_azimuth=-115,
                     win_name='',
                     show=False,
                     wait_time=0,
@@ -123,6 +125,7 @@ class Interhand3D(TopDown):
 
         Args:
             result (list[dict]): The pose estimation results containing:
+
                 - "keypoints_3d" ([K,4]): 3D keypoints
                 - "keypoints" ([K,3] or [T,K,3]): Optional for visualizing
                     2D inputs. If a sequence is given, only the last frame
@@ -148,6 +151,7 @@ class Interhand3D(TopDown):
                 smaller than 0, all the instances in the pose_result will be
                 shown. Otherwise, pad or truncate the pose_result to a length
                 of num_instances.
+            axis_azimuth (float): axis azimuth angle for 3D visualizations.
             win_name (str): The window name.
             show (bool): Whether to show the image. Default: False.
             wait_time (int): Value of waitKey param.
@@ -211,7 +215,7 @@ class Interhand3D(TopDown):
             pose_link_color,
             vis_height,
             axis_limit=300,
-            axis_azimuth=-115,
+            axis_azimuth=axis_azimuth,
             axis_elev=15,
             kpt_score_thr=kpt_score_thr,
             num_instances=num_instances)

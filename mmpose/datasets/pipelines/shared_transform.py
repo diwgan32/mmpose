@@ -3,115 +3,20 @@ import warnings
 from collections.abc import Sequence
 
 import mmcv
-import time
 import numpy as np
+import torch
 from mmcv.parallel import DataContainer as DC
 from mmcv.utils import build_from_cfg
 from numpy import random
-from torch import Tensor
+from torchvision.transforms import functional as F
+
 from ..builder import PIPELINES
-from typing import List, Tuple, Any, Optional
-import torch
 
 try:
     import albumentations
 except ImportError:
     albumentations = None
 
-def to_tensor(pic):
-    """Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor.
-    This function does not support torchscript.
-    See :class:`~torchvision.transforms.ToTensor` for more details.
-    Args:
-        pic (PIL Image or numpy.ndarray): Image to be converted to tensor.
-    Returns:
-        Tensor: Converted image.
-    """
-    default_float_dtype = torch.get_default_dtype()
-    from_numpy_time = 0
-    if isinstance(pic, np.ndarray):
-        # handle numpy array
-        if pic.ndim == 2:
-            pic = pic[:, :, None]
-
-        t1 = time.time()
-        img = torch.from_numpy(pic.transpose((2, 0, 1))).contiguous()
-        from_numpy_time += (time.time() - t1)
-        # backward compatibility
-        #print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
-        if isinstance(img, torch.ByteTensor):
-            return img.to(dtype=default_float_dtype).div(255)
-        else:
-            return img
-
-    if accimage is not None and isinstance(pic, accimage.Image):
-        nppic = np.zeros([pic.channels, pic.height, pic.width], dtype=np.float32)
-        pic.copyto(nppic)
-        t1 = time.time()
-        ret = torch.from_numpy(nppic).to(dtype=default_float_dtype)
-        from_numpy_time += (time.time() - t1)
-        #print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
-        return ret
-
-    # handle PIL Image
-    mode_to_nptype = {"I": np.int32, "I;16": np.int16, "F": np.float32}
-    
-    t1 = time.time()
-    img = torch.from_numpy(np.array(pic, mode_to_nptype.get(pic.mode, np.uint8), copy=True))
-    from_numpy_time += (time.time() - t1)
-
-    if pic.mode == "1":
-        img = 255 * img
-    img = img.view(pic.size[1], pic.size[0], len(pic.getbands()))
-    # put it from HWC to CHW format
-    img = img.permute((2, 0, 1)).contiguous()
-    #print(f"ToTensorFromNumpy: {from_numpy_time}", flush=True)
-    if isinstance(img, torch.ByteTensor):
-        return img.to(dtype=default_float_dtype).div(255)
-    else:
-        return img
-
-def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool = False) -> Tensor:
-    """Normalize a float tensor image with mean and standard deviation.
-    This transform does not support PIL Image.
-    .. note::
-        This transform acts out of place by default, i.e., it does not mutates the input tensor.
-    See :class:`~torchvision.transforms.Normalize` for more details.
-    Args:
-        tensor (Tensor): Float tensor image of size (C, H, W) or (B, C, H, W) to be normalized.
-        mean (sequence): Sequence of means for each channel.
-        std (sequence): Sequence of standard deviations for each channel.
-        inplace(bool,optional): Bool to make this operation inplace.
-    Returns:
-        Tensor: Normalized Tensor image.
-    """
-    if not isinstance(tensor, torch.Tensor):
-        raise TypeError(f"Input tensor should be a torch tensor. Got {type(tensor)}.")
-
-    if not tensor.is_floating_point():
-        raise TypeError(f"Input tensor should be a float tensor. Got {tensor.dtype}.")
-
-    if tensor.ndim < 3:
-        raise ValueError(
-            f"Expected tensor to be a tensor image of size (..., C, H, W). Got tensor.size() = {tensor.size()}"
-        )
-
-    if not inplace:
-        tensor = tensor.clone()
-
-    dtype = tensor.dtype
-    t1 = time.time()
-    mean = torch.as_tensor(mean, dtype=dtype, device=tensor.device)
-    std = torch.as_tensor(std, dtype=dtype, device=tensor.device)
-    #print(f"NormalizeAsTensor: {time.time() - t1}", flush=True)
-    if (std == 0).any():
-        raise ValueError(f"std evaluated to zero after conversion to {dtype}, leading to division by zero.")
-    if mean.ndim == 1:
-        mean = mean.view(-1, 1, 1)
-    if std.ndim == 1:
-        std = std.view(-1, 1, 1)
-    tensor.sub_(mean).div_(std)
-    return tensor
 
 @PIPELINES.register_module()
 class ToTensor:
@@ -123,13 +28,19 @@ class ToTensor:
         results (dict): contain all information about training.
     """
 
+    def __init__(self, device='cpu'):
+        self.device = device
+
+    def _to_tensor(self, x):
+        return torch.from_numpy(x.astype('float32')).permute(2, 0, 1).to(
+            self.device).div_(255.0)
+
     def __call__(self, results):
-        t1 = time.time()
         if isinstance(results['img'], (list, tuple)):
-            results['img'] = [to_tensor(img) for img in results['img']]
+            results['img'] = [self._to_tensor(img) for img in results['img']]
         else:
-            results['img'] = to_tensor(results['img'])
-        #print(f"ToTensor: {time.time()-t1}", flush=True)
+            results['img'] = self._to_tensor(results['img'])
+
         return results
 
 
@@ -149,16 +60,15 @@ class NormalizeTensor:
         self.std = std
 
     def __call__(self, results):
-        t1 = time.time()
         if isinstance(results['img'], (list, tuple)):
             results['img'] = [
-                normalize(img, mean=self.mean, std=self.std)
+                F.normalize(img, mean=self.mean, std=self.std, inplace=True)
                 for img in results['img']
             ]
         else:
-            results['img'] = normalize(
-                results['img'], mean=self.mean, std=self.std)
-        #print(f"NormalizeTensor: {time.time() - t1}", flush=True)
+            results['img'] = F.normalize(
+                results['img'], mean=self.mean, std=self.std, inplace=True)
+
         return results
 
 
@@ -243,7 +153,6 @@ class Collect:
             results (dict): The resulting dict to be modified and passed
               to the next transform in pipeline.
         """
-        t1 = time.time()
         if 'ann_info' in results:
             results.update(results['ann_info'])
 
@@ -268,7 +177,7 @@ class Collect:
         if 'bbox_id' in results:
             meta['bbox_id'] = results['bbox_id']
         data[self.meta_name] = DC(meta, cpu_only=True)
-        #print(f"Collect: {time.time() - t1}", flush=True)
+
         return data
 
     def __repr__(self):
@@ -289,7 +198,9 @@ class Albumentation:
     to get more information about pixel-level transforms.
 
     An example of ``transforms`` is as followed:
-    .. code-block::
+
+    .. code-block:: python
+
         [
             dict(
                 type='RandomBrightnessContrast',
@@ -305,6 +216,7 @@ class Albumentation:
                 ],
                 p=0.1),
         ]
+
     Args:
         transforms (list[dict]): A list of Albumentation transformations
         keymap (dict): Contains {'input key':'albumentation-style key'},
@@ -333,8 +245,10 @@ class Albumentation:
         """Import a module from albumentations.
 
         It resembles some of :func:`build_from_cfg` logic.
+
         Args:
             cfg (dict): Config dict. It should at least contain the key "type".
+
         Returns:
             obj: The constructed object.
         """
@@ -366,9 +280,11 @@ class Albumentation:
         """Dictionary mapper.
 
         Renames keys according to keymap provided.
+
         Args:
             d (dict): old dict
             keymap (dict): {'old_key':'new_key'}
+
         Returns:
             dict: new dict.
         """
@@ -517,6 +433,50 @@ class PhotometricDistortion:
 
 
 @PIPELINES.register_module()
+class MultiItemProcess:
+    """Process each item and merge multi-item results to lists.
+
+    Args:
+        pipeline (dict): Dictionary to construct pipeline for a single item.
+    """
+
+    def __init__(self, pipeline):
+        self.pipeline = Compose(pipeline)
+
+    def __call__(self, results):
+        results_ = {}
+        for idx, result in results.items():
+            single_result = self.pipeline(result)
+            for k, v in single_result.items():
+                if k in results_:
+                    results_[k].append(v)
+                else:
+                    results_[k] = [v]
+
+        return results_
+
+
+@PIPELINES.register_module()
+class DiscardDuplicatedItems:
+
+    def __init__(self, keys_list):
+        """Discard duplicated single-item results.
+
+        Args:
+            keys_list (list): List of keys that need to be deduplicate.
+        """
+        self.keys_list = keys_list
+
+    def __call__(self, results):
+        for k, v in results.items():
+            if k in self.keys_list:
+                assert isinstance(v, Sequence)
+                results[k] = v[0]
+
+        return results
+
+
+@PIPELINES.register_module()
 class MultitaskGatherTarget:
     """Gather the targets for multitask heads.
 
@@ -558,9 +518,9 @@ class RenameKeys:
     """Rename the keys.
 
     Args:
-    key_pairs (Sequence[tuple]): Required keys to be renamed. If a tuple
-    (key_src, key_tgt) is given as an element, the item retrieved by key_src
-    will be renamed as key_tgt.
+        key_pairs (Sequence[tuple]): Required keys to be renamed.
+            If a tuple (key_src, key_tgt) is given as an element,
+            the item retrieved by key_src will be renamed as key_tgt.
     """
 
     def __init__(self, key_pairs):

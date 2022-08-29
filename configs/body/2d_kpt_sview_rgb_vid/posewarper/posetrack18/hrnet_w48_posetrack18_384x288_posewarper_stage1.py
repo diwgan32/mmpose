@@ -1,10 +1,9 @@
-_base_ = ['../../../../_base_/datasets/posetrack18.py']
-log_level = 'INFO'
+_base_ = [
+    '../../../../_base_/default_runtime.py',
+    '../../../../_base_/datasets/posetrack18.py'
+]
 load_from = 'https://download.openmmlab.com/mmpose/top_down/hrnet/hrnet_w48_coco_384x288-314c8528_20200708.pth'  # noqa: E501
-resume_from = None
-dist_params = dict(backend='nccl')
 cudnn_benchmark = True
-workflow = [('train', 1)]
 checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metric='mAP', save_best='Total AP')
 
@@ -16,13 +15,6 @@ optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(policy='step', step=[5, 7])
 total_epochs = 10
-log_config = dict(
-    interval=50,
-    hooks=[
-        dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
-    ])
-
 channel_cfg = dict(
     num_output_channels=17,
     dataset_joints=17,
@@ -99,6 +91,8 @@ data_cfg = dict(
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
+    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.16, prob=0.3),
     dict(
         type='TopDownHalfBodyTransform',
         num_joints_half_body=8,
@@ -125,6 +119,7 @@ train_pipeline = [
 
 val_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(

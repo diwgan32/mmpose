@@ -9,7 +9,7 @@
 We provide a demo script to test a single image, given gt json file.
 
 *Hand Pose Model Preparation:*
-The pre-trained hand pose estimation model can be downloaded from [model zoo](https://mmpose.readthedocs.io/en/latest/topics/hand%282d%29.html).
+The pre-trained hand pose estimation model can be downloaded from [model zoo](https://mmpose.readthedocs.io/en/latest/topics/hand%282d%2Ckpt%2Crgb%2Cimg%29.html).
 Take [onehand10k model](https://download.openmmlab.com/mmpose/top_down/resnet/res50_onehand10k_256x256-e67998f6_20200813.pth) as an example:
 
 ```shell
@@ -50,7 +50,7 @@ Assume that you have already installed [mmdet](https://github.com/open-mmlab/mmd
 
 *Hand Box Model Preparation:* The pre-trained hand box estimation model can be found in [det model zoo](/demo/docs/mmdet_modelzoo.md).
 
-*Hand Pose Model Preparation:* The pre-trained hand pose estimation model can be downloaded from [pose model zoo](https://mmpose.readthedocs.io/en/latest/topics/hand%282d%29.html).
+*Hand Pose Model Preparation:* The pre-trained hand pose estimation model can be downloaded from [pose model zoo](https://mmpose.readthedocs.io/en/latest/topics/hand%282d%2Ckpt%2Crgb%2Cimg%29.html).
 
 ```shell
 python demo/top_down_img_demo_with_mmdet.py \
@@ -80,17 +80,19 @@ Assume that you have already installed [mmdet](https://github.com/open-mmlab/mmd
 
 *Hand Box Model Preparation:* The pre-trained hand box estimation model can be found in [det model zoo](/demo/docs/mmdet_modelzoo.md).
 
-*Hand Pose Model Preparation:* The pre-trained hand pose estimation model can be found in [pose model zoo](https://mmpose.readthedocs.io/en/latest/topics/hand%282d%29.html).
+*Hand Pose Model Preparation:* The pre-trained hand pose estimation model can be found in [pose model zoo](https://mmpose.readthedocs.io/en/latest/topics/hand%282d%2Ckpt%2Crgb%2Cimg%29.html).
 
 ```shell
 python demo/top_down_video_demo_with_mmdet.py \
     ${MMDET_CONFIG_FILE} ${MMDET_CHECKPOINT_FILE} \
     ${MMPOSE_CONFIG_FILE} ${MMPOSE_CHECKPOINT_FILE} \
-    --video-path ${VIDEO_FILE} \
+    --video-path ${VIDEO_PATH} \
     --out-video-root ${OUTPUT_VIDEO_ROOT} \
     [--show --device ${GPU_ID or CPU}] \
     [--bbox-thr ${BBOX_SCORE_THR} --kpt-thr ${KPT_SCORE_THR}]
 ```
+
+Note that `${VIDEO_PATH}` can be the local path or **URL** link to video file.
 
 Examples:
 
@@ -110,4 +112,4 @@ Some tips to speed up MMPose inference:
 For 2D hand pose estimation models, try to edit the config file. For example,
 
 1. set `flip_test=False` in [hand-res50](https://github.com/open-mmlab/mmpose/tree/e1ec589884235bee875c89102170439a991f8450/configs/hand/resnet/onehand10k/res50_onehand10k_256x256.py#L56).
-1. set `post_process='default'` in [hand-res50](https://github.com/open-mmlab/mmpose/tree/e1ec589884235bee875c89102170439a991f8450/configs/hand/resnet/onehand10k/res50_onehand10k_256x256.py#L57).
+2. set `post_process='default'` in [hand-res50](https://github.com/open-mmlab/mmpose/tree/e1ec589884235bee875c89102170439a991f8450/configs/hand/resnet/onehand10k/res50_onehand10k_256x256.py#L57).

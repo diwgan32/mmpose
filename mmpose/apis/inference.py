@@ -1,6 +1,8 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import copy
 import os
 import warnings
+from collections import defaultdict
 
 import time
 import cv2
@@ -9,13 +11,15 @@ import numpy as np
 import torch
 from mmcv.parallel import collate, scatter
 from mmcv.runner import load_checkpoint
+from mmcv.utils.misc import deprecated_api_warning
 from PIL import Image
 import pickle
 import onnx
 
+from mmpose.core.bbox import bbox_xywh2xyxy, bbox_xyxy2xywh
 from mmpose.core.post_processing import oks_nms
 from mmpose.datasets.dataset_info import DatasetInfo
-from mmpose.datasets.pipelines import Compose
+from mmpose.datasets.pipelines import Compose, ToTensor
 from mmpose.models import build_posenet
 from mmpose.utils.hooks import OutputHook
 import tensorrt as trt
@@ -77,7 +81,6 @@ def init_pose_model(config, checkpoint=None, device='cuda:0'):
     model.to(device)
     model.eval()
     return model
-
 
 def _xyxy2xywh(bbox_xyxy):
     """Transform the bbox format from x1y1x2y2 to xywh.
@@ -179,22 +182,41 @@ class LoadImage:
         results['img'] = img
         return results
 
+def _pipeline_gpu_speedup(pipeline, device):
+    """Load images to GPU and speed up the data transforms in pipelines.
+
+    Args:
+        pipeline: A instance of `Compose`.
+        device: A string or torch.device.
+
+    Examples:
+        _pipeline_gpu_speedup(test_pipeline, 'cuda:0')
+    """
+
+    for t in pipeline.transforms:
+        if isinstance(t, ToTensor):
+            t.device = device
+
 
 def _inference_single_pose_model(model,
-                                 img_or_path,
+                                 imgs_or_paths,
                                  bboxes,
                                  dataset='TopDownCocoDataset',
                                  dataset_info=None,
                                  return_heatmap=False,
+                                 use_multi_frames=False,
                                  trt=False):
     """Inference human bounding boxes.
 
-    num_bboxes: N
-    num_keypoints: K
+    Note:
+        - num_frames: F
+        - num_bboxes: N
+        - num_keypoints: K
 
     Args:
         model (nn.Module): The loaded pose model.
-        img_or_path (str | np.ndarray): Image filename or loaded image.
+        imgs_or_paths (list(str) | list(np.ndarray)): Image filename(s) or
+            loaded image(s)
         bboxes (list | np.ndarray): All bounding boxes (with scores),
             shaped (N, 4) or (N, 5). (left, top, width, height, [score])
             where N is number of bounding boxes.
@@ -217,10 +239,18 @@ def _inference_single_pose_model(model,
         device = "cuda:0"
 
     # build the data pipeline
-    channel_order = cfg.test_pipeline[0].get('channel_order', 'rgb')
-    test_pipeline = [LoadImage(channel_order=channel_order)
-                     ] + cfg.test_pipeline[1:]
-    test_pipeline = Compose(test_pipeline)
+    _test_pipeline = copy.deepcopy(cfg.test_pipeline)
+
+    has_bbox_xywh2cs = False
+    for transform in _test_pipeline:
+        if transform['type'] == 'TopDownGetBboxCenterScale':
+            has_bbox_xywh2cs = True
+            break
+    if not has_bbox_xywh2cs:
+        _test_pipeline.insert(
+            0, dict(type='TopDownGetBboxCenterScale', padding=1.25))
+    test_pipeline = Compose(_test_pipeline)
+    _pipeline_gpu_speedup(test_pipeline, next(model.parameters()).device)
 
     assert len(bboxes[0]) in [4, 5]
 
@@ -319,16 +349,10 @@ def _inference_single_pose_model(model,
     t2 = time.time()
     batch_data = []
     for bbox in bboxes:
-        center, scale = _box2cs(cfg, bbox)
-
         # prepare data
         data = {
-            'img_or_path':
-            img_or_path,
-            'center':
-            center,
-            'scale':
-            scale,
+            'bbox':
+            bbox,
             'bbox_score':
             bbox[4] if len(bbox) == 5 else 1,
             'bbox_id':
@@ -347,15 +371,25 @@ def _inference_single_pose_model(model,
                 'flip_pairs': flip_pairs
             }
         }
+
+        if use_multi_frames:
+            # weight for different frames in multi-frame inference setting
+            data['frame_weight'] = cfg.data.test.data_cfg.frame_weight_test
+            if isinstance(imgs_or_paths[0], np.ndarray):
+                data['img'] = imgs_or_paths
+            else:
+                data['image_file'] = imgs_or_paths
+        else:
+            if isinstance(imgs_or_paths, np.ndarray):
+                data['img'] = imgs_or_paths
+            else:
+                data['image_file'] = imgs_or_paths
+
         data = test_pipeline(data)
         batch_data.append(data)
-    #print(f"Model pipeline time: {time.time() - t2}", flush=True)
-    batch_data = collate(batch_data, samples_per_gpu=1)
-    batch_data['img'] = batch_data['img'].to(device)
-    # get all img_metas of each bounding box
-    batch_data['img_metas'] = [
-        img_metas[0] for img_metas in batch_data['img_metas'].data
-    ]
+
+    batch_data = collate(batch_data, samples_per_gpu=len(batch_data))
+    batch_data = scatter(batch_data, [device])[0]
 
     # forward the model
 #     with open('img.p', 'wb') as outfile:
@@ -394,8 +428,9 @@ def _inference_single_pose_model(model,
     return result['preds'], result['output_heatmap']
 
 
+@deprecated_api_warning(name_dict=dict(img_or_path='imgs_or_paths'))
 def inference_top_down_pose_model(model,
-                                  img_or_path,
+                                  imgs_or_paths,
                                   person_results=None,
                                   bbox_thr=None,
                                   format='xywh',
@@ -406,27 +441,32 @@ def inference_top_down_pose_model(model,
                                   trt=False):
     """Inference a single image with a list of person bounding boxes.
 
-    num_people: P
-    num_keypoints: K
-    bbox height: H
-    bbox width: W
+    Note:
+        - num_frames: F
+        - num_people: P
+        - num_keypoints: K
+        - bbox height: H
+        - bbox width: W
 
     Args:
         model (nn.Module): The loaded pose model.
-        img_or_path (str| np.ndarray): Image filename or loaded image.
-        person_results (List(dict), optional): a list of detected persons that
-            contains following items:
-            - 'bbox' and/or 'track_id'.
-            - 'bbox' (4, ) or (5, ): The person bounding box, which contains
+        imgs_or_paths (str | np.ndarray | list(str) | list(np.ndarray)):
+            Image filename(s) or loaded image(s).
+        person_results (list(dict), optional): a list of detected persons that
+            contains ``bbox`` and/or ``track_id``:
+
+            - ``bbox`` (4, ) or (5, ): The person bounding box, which contains
                 4 box coordinates (and score).
-            - 'track_id' (int): The unique id for each human instance.
-            If not provided, a dummy person result with a bbox covering the
-            entire image will be used. Default: None.
-        bbox_thr: Threshold for bounding boxes. Only bboxes with higher scores
-            will be fed into the pose detector. If bbox_thr is None, ignore it.
-        format: bbox format ('xyxy' | 'xywh'). Default: 'xywh'.
-            'xyxy' means (left, top, right, bottom),
-            'xywh' means (left, top, width, height).
+            - ``track_id`` (int): The unique id for each human instance. If
+                not provided, a dummy person result with a bbox covering
+                the entire image will be used. Default: None.
+        bbox_thr (float | None): Threshold for bounding boxes. Only bboxes
+            with higher scores will be fed into the pose detector.
+            If bbox_thr is None, all boxes will be used.
+        format (str): bbox format ('xyxy' | 'xywh'). Default: 'xywh'.
+
+            - `xyxy` means (left, top, right, bottom),
+            - `xywh` means (left, top, width, height).
         dataset (str): Dataset name, e.g. 'TopDownCocoDataset'.
             It is deprecated. Please use dataset_info instead.
         dataset_info (DatasetInfo): A class containing all dataset info.
@@ -435,14 +475,22 @@ def inference_top_down_pose_model(model,
             need to be returned, default: None
         trt (bool): Whether or not to use the trt version of the model
     Returns:
-        list[dict]: The bbox & pose info,
-            Each item in the list is a dictionary,
-            containing the bbox: (left, top, right, bottom, [score])
-            and the pose (ndarray[Kx3]): x, y, score
-        list[dict[np.ndarray[N, K, H, W] | torch.tensor[N, K, H, W]]]:
-            Output feature maps from layers specified in `outputs`.
+        tuple:
+        - pose_results (list[dict]): The bbox & pose info. \
+            Each item in the list is a dictionary, \
+            containing the bbox: (left, top, right, bottom, [score]) \
+            and the pose (ndarray[Kx3]): x, y, score.
+        - returned_outputs (list[dict[np.ndarray[N, K, H, W] | \
+            torch.Tensor[N, K, H, W]]]): \
+            Output feature maps from layers specified in `outputs`. \
             Includes 'heatmap' if `return_heatmap` is True.
     """
+    # decide whether to use multi frames for inference
+    if isinstance(imgs_or_paths, (list, tuple)):
+        use_multi_frames = True
+    else:
+        assert isinstance(imgs_or_paths, (str, np.ndarray))
+        use_multi_frames = False
     # get dataset info
     if (dataset_info is None and hasattr(model, 'cfg')
             and 'dataset_info' in model.cfg):
@@ -462,10 +510,11 @@ def inference_top_down_pose_model(model,
 
     if person_results is None:
         # create dummy person results
-        if isinstance(img_or_path, str):
-            width, height = Image.open(img_or_path).size
+        sample = imgs_or_paths[0] if use_multi_frames else imgs_or_paths
+        if isinstance(sample, str):
+            width, height = Image.open(sample).size
         else:
-            height, width = img_or_path.shape[:2]
+            height, width = sample.shape[:2]
         person_results = [{'bbox': np.array([0, 0, width, height])}]
 
     if len(person_results) == 0:
@@ -483,11 +532,11 @@ def inference_top_down_pose_model(model,
 
     if format == 'xyxy':
         bboxes_xyxy = bboxes
-        bboxes_xywh = _xyxy2xywh(bboxes)
+        bboxes_xywh = bbox_xyxy2xywh(bboxes)
     else:
         # format is already 'xywh'
         bboxes_xywh = bboxes
-        bboxes_xyxy = _xywh2xyxy(bboxes)
+        bboxes_xyxy = bbox_xywh2xyxy(bboxes)
 
     # if bbox_thr remove all bounding box
     if len(bboxes_xywh) == 0:
@@ -498,11 +547,12 @@ def inference_top_down_pose_model(model,
         
         poses, heatmap = _inference_single_pose_model(
             model,
-            img_or_path,
+            imgs_or_paths,
             bboxes_xywh,
             dataset=dataset,
             dataset_info=dataset_info,
             return_heatmap=return_heatmap,
+            use_multi_frames=use_multi_frames,
             trt=trt)
         if return_heatmap:
             h.layer_outputs['heatmap'] = heatmap
@@ -528,12 +578,13 @@ def inference_bottom_up_pose_model(model,
                                    pose_nms_thr=0.9,
                                    return_heatmap=False,
                                    outputs=None):
-    """Inference a single image.
+    """Inference a single image with a bottom-up pose model.
 
-    num_people: P
-    num_keypoints: K
-    bbox height: H
-    bbox width: W
+    Note:
+        - num_people: P
+        - num_keypoints: K
+        - bbox height: H
+        - bbox width: W
 
     Args:
         model (nn.Module): The loaded pose model.
@@ -547,12 +598,14 @@ def inference_bottom_up_pose_model(model,
             need to be returned, default: None.
 
     Returns:
-        list[ndarray]: The predicted pose info.
-            The length of the list is the number of people (P).
-            Each item in the list is a ndarray, containing each person's
-            pose (ndarray[Kx3]): x, y, score.
-        list[dict[np.ndarray[N, K, H, W] | torch.tensor[N, K, H, W]]]:
-            Output feature maps from layers specified in `outputs`.
+        tuple:
+        - pose_results (list[np.ndarray]): The predicted pose info. \
+            The length of the list is the number of people (P). \
+            Each item in the list is a ndarray, containing each \
+            person's pose (np.ndarray[Kx3]): x, y, score.
+        - returned_outputs (list[dict[np.ndarray[N, K, H, W] | \
+            torch.Tensor[N, K, H, W]]]): \
+            Output feature maps from layers specified in `outputs`. \
             Includes 'heatmap' if `return_heatmap` is True.
     """
     # get dataset info
@@ -580,16 +633,15 @@ def inference_bottom_up_pose_model(model,
 
     cfg = model.cfg
     device = next(model.parameters()).device
+    if device.type == 'cpu':
+        device = -1
 
     # build the data pipeline
-    channel_order = cfg.test_pipeline[0].get('channel_order', 'rgb')
-    test_pipeline = [LoadImage(channel_order=channel_order)
-                     ] + cfg.test_pipeline[1:]
-    test_pipeline = Compose(test_pipeline)
+    test_pipeline = Compose(cfg.test_pipeline)
+    _pipeline_gpu_speedup(test_pipeline, next(model.parameters()).device)
 
     # prepare data
     data = {
-        'img_or_path': img_or_path,
         'dataset': dataset_name,
         'ann_info': {
             'image_size': np.array(cfg.data_cfg['image_size']),
@@ -597,15 +649,14 @@ def inference_bottom_up_pose_model(model,
             'flip_index': flip_index,
         }
     }
+    if isinstance(img_or_path, np.ndarray):
+        data['img'] = img_or_path
+    else:
+        data['image_file'] = img_or_path
 
     data = test_pipeline(data)
     data = collate([data], samples_per_gpu=1)
-    if next(model.parameters()).is_cuda:
-        # scatter to specified GPU
-        data = scatter(data, [device])[0]
-    else:
-        # just get the actual data from DataContainer
-        data['img_metas'] = data['img_metas'].data[0]
+    data = scatter(data, [device])[0]
 
     with OutputHook(model, outputs=outputs, as_tensor=False) as h:
         # forward the model
@@ -631,7 +682,12 @@ def inference_bottom_up_pose_model(model,
             })
 
         # pose nms
-        keep = oks_nms(pose_results, pose_nms_thr, sigmas)
+        score_per_joint = cfg.model.test_cfg.get('score_per_joint', False)
+        keep = oks_nms(
+            pose_results,
+            pose_nms_thr,
+            sigmas,
+            score_per_joint=score_per_joint)
         pose_results = [pose_results[_keep] for _keep in keep]
 
     return pose_results, returned_outputs
@@ -901,12 +957,68 @@ def vis_pose_result(model,
     return img
 
 
+def inference_gesture_model(
+    model,
+    videos_or_paths,
+    bboxes=None,
+    dataset_info=None,
+):
+
+    cfg = model.cfg
+    device = next(model.parameters()).device
+    if device.type == 'cpu':
+        device = -1
+
+    # build the data pipeline
+    test_pipeline = Compose(cfg.test_pipeline)
+    _pipeline_gpu_speedup(test_pipeline, next(model.parameters()).device)
+
+    # data preprocessing
+    data = defaultdict(list)
+    data['label'] = -1
+
+    if not isinstance(videos_or_paths, (tuple, list)):
+        videos_or_paths = [videos_or_paths]
+    if isinstance(videos_or_paths[0], str):
+        data['video_file'] = videos_or_paths
+    else:
+        data['video'] = videos_or_paths
+
+    if bboxes is not None:
+        data['bbox'] = bboxes
+
+    if isinstance(dataset_info, dict):
+        data['modality'] = dataset_info.get('modality', ['rgb'])
+        data['fps'] = dataset_info.get('fps', None)
+        if not isinstance(data['fps'], (tuple, list)):
+            data['fps'] = [data['fps']]
+
+    data = test_pipeline(data)
+    batch_data = collate([data], samples_per_gpu=1)
+    batch_data = scatter(batch_data, [device])[0]
+
+    # inference
+    with torch.no_grad():
+        output = model.forward(return_loss=False, **batch_data)
+        scores = []
+        for modal, logit in output['logits'].items():
+            while logit.ndim > 2:
+                logit = logit.mean(dim=2)
+            score = torch.softmax(logit, dim=1)
+            scores.append(score)
+        score = torch.stack(scores, dim=2).mean(dim=2)
+        pred_score, pred_label = torch.max(score, dim=1)
+
+    return pred_label, pred_score
+
+
 def process_mmdet_results(mmdet_results, cat_id=1):
     """Process mmdet results, and return a list of bboxes.
 
     Args:
         mmdet_results (list|tuple): mmdet results.
         cat_id (int): category id (default: 1 for human)
+
     Returns:
         person_results (list): a list of detected bounding boxes
     """
@@ -924,3 +1036,36 @@ def process_mmdet_results(mmdet_results, cat_id=1):
         person_results.append(person)
 
     return person_results
+
+
+def collect_multi_frames(video, frame_id, indices, online=False):
+    """Collect multi frames from the video.
+
+    Args:
+        video (mmcv.VideoReader): A VideoReader of the input video file.
+        frame_id (int): index of the current frame
+        indices (list(int)): index offsets of the frames to collect
+        online (bool): inference mode, if set to True, can not use future
+            frame information.
+
+    Returns:
+        list(ndarray): multi frames collected from the input video file.
+    """
+    num_frames = len(video)
+    frames = []
+    # put the current frame at first
+    frames.append(video[frame_id])
+    # use multi frames for inference
+    for idx in indices:
+        # skip current frame
+        if idx == 0:
+            continue
+        support_idx = frame_id + idx
+        # online mode, can not use future frame information
+        if online:
+            support_idx = np.clip(support_idx, 0, frame_id)
+        else:
+            support_idx = np.clip(support_idx, 0, num_frames - 1)
+        frames.append(video[support_idx])
+
+    return frames

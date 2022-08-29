@@ -15,7 +15,7 @@ from .utils import InvertedResidual, load_checkpoint
 class ViPNAS_MobileNetV3(BaseBackbone):
     """ViPNAS_MobileNetV3 backbone.
 
-    ViPNAS: Efficient Video Pose Estimation via Neural Architecture Search.
+    "ViPNAS: Efficient Video Pose Estimation via Neural Architecture Search"
     More details can be found in the `paper
     <https://arxiv.org/abs/2105.10154>`__ .
 
@@ -98,7 +98,8 @@ class ViPNAS_MobileNetV3(BaseBackbone):
                 se_cfg = dict(
                     channels=mid_channels,
                     ratio=4,
-                    act_cfg=(dict(type='ReLU'), dict(type='HSigmoid')))
+                    act_cfg=(dict(type='ReLU'),
+                             dict(type='HSigmoid', bias=1.0, divisor=2.0)))
             else:
                 se_cfg = None
 

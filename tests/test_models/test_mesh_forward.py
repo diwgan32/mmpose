@@ -3,11 +3,12 @@ import os.path as osp
 import tempfile
 
 import numpy as np
+import pytest
 import torch
-from tests.utils.mesh_utils import generate_smpl_weight_file
 
-from mmpose.core.optimizer import build_optimizers
+from mmpose.core.optimizers import build_optimizers
 from mmpose.models.detectors.mesh import ParametricMesh
+from tests.utils.mesh_utils import generate_smpl_weight_file
 
 
 def test_parametric_mesh_forward():
@@ -49,6 +50,10 @@ def test_parametric_mesh_forward():
         loss_gan=None)
 
     detector = ParametricMesh(**model_cfg)
+
+    with pytest.raises(TypeError):
+        detector.init_weights(pretrained=dict())
+    detector.pretrained = model_cfg['pretrained']
     detector.init_weights()
 
     optimizers_config = dict(generator=dict(type='Adam', lr=0.0001))

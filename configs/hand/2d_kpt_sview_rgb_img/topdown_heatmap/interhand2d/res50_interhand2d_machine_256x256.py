@@ -1,9 +1,7 @@
-_base_ = ['../../../../_base_/datasets/interhand2d.py']
-log_level = 'INFO'
-load_from = None
-resume_from = None
-dist_params = dict(backend='nccl')
-workflow = [('train', 1)]
+_base_ = [
+    '../../../../_base_/default_runtime.py',
+    '../../../../_base_/datasets/interhand2d.py'
+]
 checkpoint_config = dict(interval=5)
 evaluation = dict(interval=5, metric=['PCK', 'AUC', 'EPE'], save_best='AUC')
 
@@ -68,6 +66,8 @@ data_cfg = dict(
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.5),
+    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.133, prob=0.3),
     dict(type='TopDownRandomFlip', flip_prob=0.5),
     dict(
         type='TopDownGetRandomScaleRotation', rot_factor=90, scale_factor=0.3),
@@ -89,6 +89,7 @@ train_pipeline = [
 
 val_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.5),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(

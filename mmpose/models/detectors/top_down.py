@@ -66,8 +66,8 @@ class TopDown(BasePose):
                 keypoint_head['loss_keypoint'] = loss_pose
 
             self.keypoint_head = builder.build_head(keypoint_head)
-
-        self.init_weights(pretrained=pretrained)
+        self.pretrained = pretrained
+        self.init_weights()
 
     @property
     def with_neck(self):
@@ -81,7 +81,9 @@ class TopDown(BasePose):
 
     def init_weights(self, pretrained=None):
         """Weight initialization for model."""
-        self.backbone.init_weights(pretrained)
+        if pretrained is not None:
+            self.pretrained = pretrained
+        self.backbone.init_weights(self.pretrained)
         if self.with_neck:
             self.neck.init_weights()
         if self.with_keypoint:
@@ -104,13 +106,13 @@ class TopDown(BasePose):
         the outer list indicating test time augmentations.
 
         Note:
-            batch_size: N
-            num_keypoints: K
-            num_img_channel: C (Default: 3)
-            img height: imgH
-            img width: imgW
-            heatmaps height: H
-            heatmaps weight: W
+            - batch_size: N
+            - num_keypoints: K
+            - num_img_channel: C (Default: 3)
+            - img height: imgH
+            - img width: imgW
+            - heatmaps height: H
+            - heatmaps weight: W
 
         Args:
             img (torch.Tensor[NxCximgHximgW]): Input images.
@@ -119,6 +121,7 @@ class TopDown(BasePose):
                 different joint types.
             img_metas (list(dict)): Information about data augmentation
                 By default this includes:
+
                 - "image_file: path to the image file
                 - "center": center of the bbox
                 - "scale": scale of the bbox
@@ -129,8 +132,8 @@ class TopDown(BasePose):
             return_heatmap (bool) : Option to return heatmap.
 
         Returns:
-            dict|tuple: if `return loss` is true, then return losses.
-                Otherwise, return predicted poses, boxes, image paths
+            dict|tuple: if `return loss` is true, then return losses. \
+                Otherwise, return predicted poses, boxes, image paths \
                 and heatmaps.
         """
         if return_loss:
@@ -183,8 +186,10 @@ class TopDown(BasePose):
             if self.with_keypoint:
                 output_flipped_heatmap = self.keypoint_head.inference_model(
                     features_flipped, img_metas[0]['flip_pairs'])
-                output_heatmap = (output_heatmap +
-                                  output_flipped_heatmap) * 0.5
+                output_heatmap = (output_heatmap + output_flipped_heatmap)
+                if self.test_cfg.get('regression_flip_shift', False):
+                    output_heatmap[..., 0] -= 1.0 / img_width
+                output_heatmap = output_heatmap / 2
 
         if self.with_keypoint:
             keypoint_result = self.keypoint_head.decode(

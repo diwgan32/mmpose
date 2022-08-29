@@ -1,10 +1,7 @@
-_base_ = ['../../../../_base_/datasets/atrw.py']
-log_level = 'INFO'
-load_from = None
-resume_from = None
-dist_params = dict(backend='nccl')
-workflow = [('train', 1)]
-checkpoint_config = dict(interval=10)
+_base_ = [
+    '../../../../_base_/default_runtime.py',
+    '../../../../_base_/datasets/atrw.py'
+]
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
 
 optimizer = dict(
@@ -70,6 +67,8 @@ data_cfg = dict(
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.0),
+    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.2, prob=0.3),
     dict(type='TopDownRandomFlip', flip_prob=0.5),
     dict(
         type='TopDownHalfBodyTransform',
@@ -95,6 +94,7 @@ train_pipeline = [
 
 val_pipeline = [
     dict(type='LoadImageFromFile'),
+    dict(type='TopDownGetBboxCenterScale', padding=1.0),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(
